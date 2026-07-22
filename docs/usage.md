@@ -169,6 +169,7 @@ skills-scraper pdf -c 159 -B                 # one course (partner)
 skills-scraper pdf -p 91                       # a path + all its courses & labs
 skills-scraper pdf -c 159 --theme humanist
 skills-scraper pdf --list-themes               # available themes
+skills-scraper pdf --doctor                    # is this machine set up to render?
 ```
 
 Renders a stored item's Markdown to a PDF next to its vault `.md`, via Typst
@@ -179,10 +180,34 @@ warning (the PDF may be missing sections); `--force` silences it.
 Themes live in `theme/<name>/` (a `theme.yaml` manifest + a Typst
 `template.typ`). The default is **humanist** — Inter headings, Lora body, a
 terracotta accent, a title band, contents, and running headers. Pick one with
-`--theme <name>`. Requires `pandoc` and `typst` on your PATH.
+`--theme <name>`.
+
+#### What rendering needs on your machine
+
+Neither the CLI nor the app bundles the render pipeline, so a fresh machine needs
+two tools on your PATH plus the theme's fonts. Run `skills-scraper pdf --doctor`
+(or, in the GUI, **Settings → Check PDF setup**) for a checklist of what's
+missing with the exact command for your OS; it's also run automatically before
+each render.
+
+| | macOS | Windows | Linux |
+| --- | --- | --- | --- |
+| pandoc | `brew install pandoc` | `winget install --id JohnMacFarlane.Pandoc` | `sudo apt install pandoc` |
+| typst | `brew install typst` | `winget install --id Typst.Typst` | `cargo install --locked typst-cli` |
+| fonts → | `~/Library/Fonts` | `%LOCALAPPDATA%\Microsoft\Windows\Fonts` | `~/.local/share/fonts` |
+
+A theme declares the font families it needs in its `theme.yaml` `fonts:` list —
+humanist uses **Inter**, **Lora**, **Fira Code**, and **Noto Sans**, all free
+under the SIL Open Font License and downloadable from
+[Google Fonts](https://fonts.google.com). Fonts matter more than they look:
+Typst only *warns* about a family it can't find and still exits successfully, so
+a missing font gives you a PDF that renders fine but silently uses substitutes.
+Missing tools stop a render; missing fonts only warn.
 
 In the GUI, open the **Browse** tab, click an item to select it, pick a theme,
-and click **Generate PDF** (you're warned first if it isn't fully fetched).
+and click **Generate PDF** (you're warned first if it isn't fully fetched). If
+the toolchain is incomplete you get the setup checklist instead of an error; if
+only fonts are missing you can still choose **Generate anyway**.
 
 ### `db` (alias `mgmt`) — manage stored items
 

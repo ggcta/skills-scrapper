@@ -62,6 +62,9 @@ File view, graph view, and the script in action:
 - **Google Chrome** — the scraper drives a real Chrome browser via Selenium.
 - A **Google Skills account** — most course/lab pages require you to
   be signed in.
+- *For PDF export only:* **pandoc** + **typst** on your PATH, and the theme's
+  fonts installed. Run `skills-scraper pdf --doctor` (or **Settings → Check PDF
+  setup** in the app) for a per-OS checklist of anything missing.
 
 See **[docs/installation.md](docs/installation.md)** for setup details.
 
