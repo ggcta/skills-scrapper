@@ -37,7 +37,13 @@ type Theme struct {
 	Description string `yaml:"description"`
 	Engine      string `yaml:"engine"`
 	Template    string `yaml:"template"`
-	dir         string // absolute theme directory
+	// Fonts are the families the template asks for, declared here so the
+	// readiness check (see doctor.go) is data like the rest of the look, and a
+	// new theme needs no recompile to be checkable. Typst only warns about a
+	// missing family and still exits 0, so this list is what turns that silent
+	// fallback into something we can report.
+	Fonts []string `yaml:"fonts"`
+	dir   string   // absolute theme directory
 }
 
 // TemplatePath is the absolute path to the theme's template file.

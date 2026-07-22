@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -34,6 +36,24 @@ func cmdPDF(args []string) int {
 		fmt.Fprintf(os.Stderr, "error loading theme: %v\n", err)
 		return 1
 	}
+
+	// --doctor: report the pipeline's readiness and stop. --json is for the GUI.
+	if p.has("--doctor") {
+		return pdfDoctor(theme, p.has("--json"))
+	}
+
+	// Otherwise check readiness up front, so a missing tool produces the same
+	// actionable checklist instead of pandoc/typst's bare "not found on PATH".
+	// Missing FONTS only warn: the PDF still renders, just with typst's fallback
+	// family, and the user may not care enough to stop the run over it.
+	report := pdfgen.Doctor(theme)
+	if missingTools(report) {
+		fmt.Fprintf(os.Stderr, "Cannot generate PDFs yet — the toolchain is incomplete.\n\n")
+		printDoctor(os.Stderr, report)
+		return 1
+	}
+	warnMissingFonts(report)
+
 	force := p.has("--force", "-f")
 	opts := mdgen.Options{
 		TOCOnly:      p.has("--toc", "-t"),
@@ -170,6 +190,125 @@ func itemStored(portalKey, table, id string) bool {
 		return l != nil
 	}
 	return false
+}
+
+// missingTools reports whether any external program the pipeline needs is absent.
+func missingTools(r pdfgen.Report) bool {
+	for _, t := range r.Tools {
+		if !t.Found {
+			return true
+		}
+	}
+	return false
+}
+
+// warnMissingFonts names the theme fonts typst will have to substitute. Worth its
+// own warning because typst only mentions it mid-render and still exits 0, so the
+// result is a PDF that looks wrong without anything having obviously failed.
+func warnMissingFonts(r pdfgen.Report) {
+	if !r.FontsChecked {
+		return
+	}
+	var missing []string
+	for _, f := range r.Fonts {
+		if !f.Found {
+			missing = append(missing, f.Family)
+		}
+	}
+	if len(missing) == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stderr,
+		"  ⚠ Missing font(s): %s — the PDF will use substitutes. Run `pdf --doctor` for install steps.\n",
+		strings.Join(missing, ", "))
+}
+
+// pdfDoctor prints the readiness report — JSON for the GUI, a checklist for
+// humans — and exits non-zero when something still needs installing, so it works
+// in a shell conditional.
+func pdfDoctor(theme pdfgen.Theme, asJSON bool) int {
+	report := pdfgen.Doctor(theme)
+	if asJSON {
+		b, err := json.MarshalIndent(report, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error encoding report: %v\n", err)
+			return 1
+		}
+		fmt.Println(string(b))
+	} else {
+		printDoctor(os.Stdout, report)
+	}
+	if report.OK {
+		return 0
+	}
+	return 1
+}
+
+// mark is the status glyph for one check.
+func mark(ok bool) string {
+	if ok {
+		return "✓"
+	}
+	return "✗"
+}
+
+// printRow writes one "  <glyph> <name padded> <detail>" checklist line, padding
+// the name only when a detail follows so no line ends in whitespace.
+func printRow(w io.Writer, glyph, name string, pad int, detail string) {
+	if detail == "" {
+		fmt.Fprintf(w, "  %s %s\n", glyph, name)
+		return
+	}
+	fmt.Fprintf(w, "  %s %-*s %s\n", glyph, pad, name, detail)
+}
+
+// printDoctor writes the human-readable readiness checklist: what is present,
+// what is missing, and the exact command or link that fixes each gap.
+func printDoctor(w io.Writer, r pdfgen.Report) {
+	fmt.Fprintf(w, "PDF setup — theme '%s' on %s\n\n", r.Theme, r.OS)
+
+	fmt.Fprintln(w, "Tools")
+	for _, t := range r.Tools {
+		detail := ""
+		switch {
+		case t.Found && t.Version != "":
+			detail = t.Version
+		case t.Install != "":
+			detail = "install with:  " + t.Install
+		case t.URL != "":
+			detail = "get it from:  " + t.URL
+		}
+		printRow(w, mark(t.Found), t.Name, 7, detail)
+	}
+
+	if len(r.Fonts) > 0 {
+		fmt.Fprint(w, "\nFonts")
+		if r.FontDir != "" {
+			fmt.Fprintf(w, "  (install to %s)", r.FontDir)
+		}
+		fmt.Fprintln(w)
+		for _, f := range r.Fonts {
+			if !r.FontsChecked {
+				printRow(w, "?", f.Family, 11, "needs typst before it can be checked")
+				continue
+			}
+			detail := ""
+			if !f.Found {
+				detail = f.URL
+			}
+			printRow(w, mark(f.Found), f.Family, 11, detail)
+		}
+		if r.FontNote != "" {
+			fmt.Fprintf(w, "  %s\n", r.FontNote)
+		}
+	}
+
+	fmt.Fprintln(w)
+	if r.OK {
+		fmt.Fprintln(w, "Ready — PDFs will render with the theme's intended fonts.")
+	} else {
+		fmt.Fprintln(w, "Not ready — install the items marked ✗ above, then re-run.")
+	}
 }
 
 // listThemes prints the available theme names, one per line (the GUI reads this

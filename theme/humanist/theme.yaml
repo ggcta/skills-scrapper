@@ -12,3 +12,13 @@ description: >
   running headers.
 engine: typst-pandoc
 template: template.typ
+
+# Font families template.typ asks for. Typst resolves these from the system font
+# book and only WARNS when one is missing (still exiting 0), so declaring them
+# here is what lets `pdf --doctor` catch a silently wrong-looking PDF. All four
+# are SIL Open Font License; see the download links in internal/pdfgen/doctor.go.
+fonts:
+  - Inter
+  - Lora
+  - Fira Code
+  - Noto Sans

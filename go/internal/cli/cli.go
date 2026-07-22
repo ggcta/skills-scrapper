@@ -114,6 +114,8 @@ PDF options (pdf):
                       courses + labs)
   --theme NAME        Theme folder under theme/ (default: humanist)
   --list-themes       List available themes and exit
+  --doctor            Check the PDF toolchain (pandoc, typst) and the theme's
+                      fonts, with per-OS install steps; --json for machine use
   -f, --force         Silence the "not fully fetched" warning
   --toc               Structure only; --md-no-transcript omits transcripts
 
