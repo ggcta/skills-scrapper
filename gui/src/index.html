@@ -226,6 +226,26 @@
       </div>
     </div>
 
+    <!-- PDF setup: PDF rendering shells out to pandoc + typst and draws the
+         theme's fonts from the system font book, none of which ships with the
+         app. This lists what's still missing and the exact per-OS step that
+         fixes it, from `pdf --doctor --json`. Missing tools block generation;
+         missing fonts only degrade it (typst substitutes silently), so those
+         offer "Generate anyway". -->
+    <div class="modal-backdrop" id="pdfSetupModal" hidden>
+      <div class="modal modal-wide">
+        <h2>PDF setup</h2>
+        <p class="modal-sub" id="pdfSetupSub"></p>
+        <div class="setup-list" id="pdfSetupList"></div>
+        <div class="modal-actions spread">
+          <button class="btn ghost" id="pdfSetupRecheck">Re-check</button>
+          <span class="grow"></span>
+          <button class="btn" id="pdfSetupClose">Close</button>
+          <button class="btn primary" id="pdfSetupAnyway" hidden>Generate anyway</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Auth-required modal (fetch hit a sign-in redirect) -->
     <div class="modal-backdrop" id="authModal" hidden>
       <div class="modal">
@@ -273,6 +293,12 @@
           <div class="path-row">
             <input id="setThemes" type="text" data-key="themes" spellcheck="false" />
             <button class="btn ghost" data-choose="setThemes">Choose…</button>
+          </div>
+
+          <label>PDF toolchain</label>
+          <div class="path-row">
+            <button class="btn ghost" id="settingsPdfCheck">Check PDF setup…</button>
+            <span class="hint">pandoc, typst, and the theme's fonts</span>
           </div>
 
           <label for="setPortal">Default portal</label>

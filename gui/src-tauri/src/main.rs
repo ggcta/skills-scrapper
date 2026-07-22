@@ -595,6 +595,61 @@ async fn list_themes() -> Result<Vec<String>, String> {
         .collect())
 }
 
+/// Like run_csb but keeps stdout even when the binary exits non-zero. `pdf
+/// --doctor` reports "not ready" AND exits 1 (so it stays usable in a shell
+/// conditional) — for the GUI that is a successful answer, not a failure.
+fn run_csb_output(args: &[String]) -> Result<String, String> {
+    let bin = resolve_csb()?;
+    let out = Command::new(&bin)
+        .args(args)
+        .current_dir(repo_root())
+        .envs(csb_env())
+        .output()
+        .map_err(|e| format!("failed to launch skills-scraper ({}): {e}", bin.display()))?;
+    output_or_error(
+        String::from_utf8_lossy(&out.stdout).into_owned(),
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+    )
+}
+
+/// Which stream is the answer for a report-style command: stdout whenever it has
+/// content — even on a non-zero exit, which is how `pdf --doctor` says "not
+/// ready" — otherwise stderr, as a real error. Split out so the rule is tested
+/// without spawning a process.
+fn output_or_error(stdout: String, stderr: String) -> Result<String, String> {
+    if stdout.trim().is_empty() {
+        return Err(stderr);
+    }
+    Ok(stdout)
+}
+
+/// Readiness of the PDF pipeline for a theme — pandoc/typst plus the theme's
+/// declared fonts — as the binary's JSON report. The GUI renders it as a setup
+/// checklist so a missing tool or font produces install steps instead of a bare
+/// "not found on PATH" (or, for fonts, a silently wrong-looking PDF).
+#[tauri::command]
+async fn pdf_doctor(theme: String) -> Result<String, String> {
+    let mut args = vec!["pdf".into(), "--doctor".into(), "--json".into()];
+    if !theme.is_empty() {
+        args.push("--theme".into());
+        args.push(theme);
+    }
+    tauri::async_runtime::spawn_blocking(move || run_csb_output(&args))
+        .await
+        .map_err(|e| format!("pdf-doctor task failed: {e}"))?
+}
+
+/// Open a tool or font download page from the PDF setup report in the user's real
+/// browser. Restricted to http(s) so this can never be used to launch an
+/// arbitrary local program.
+#[tauri::command]
+fn open_external(url: String) -> Result<(), String> {
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err("Only http(s) links can be opened.".into());
+    }
+    os_open(&url)
+}
+
 /// PDF-readiness of an item: "none" | "incomplete" | "complete" (backlog #5), so
 /// the GUI can warn before generating without reimplementing completeness.
 #[tauri::command]
@@ -1084,6 +1139,8 @@ fn main() {
             open_md,
             list_themes,
             pdf_status,
+            pdf_doctor,
+            open_external,
             generate_pdf,
             open_pdf,
             delete_item,
@@ -1313,5 +1370,25 @@ mod tests {
             "CSB_THEME_DIR".into(),
             "/Applications/SkillsScraper.app/Contents/Resources/theme".into()
         )));
+    }
+
+    // `pdf --doctor --json` prints its report AND exits non-zero when the
+    // toolchain is incomplete — which is precisely the report the setup dialog
+    // exists to show. Treating that exit code as a failure would swallow it.
+    #[test]
+    fn report_output_survives_a_nonzero_exit() {
+        let json = "{\"ok\":false}".to_string();
+        assert_eq!(
+            output_or_error(json.clone(), "ignored warning".into()),
+            Ok(json)
+        );
+    }
+
+    #[test]
+    fn report_with_no_output_is_an_error() {
+        assert_eq!(
+            output_or_error("   \n".into(), "binary not found".into()),
+            Err("binary not found".into())
+        );
     }
 }

@@ -508,8 +508,10 @@ async function runGeneratePdf() {
   }
 }
 
-$("#genPdfBtn").addEventListener("click", async () => {
-  if (!selectedItem) { setStatus("Select an item in the table first."); return; }
+// Check the item's own readiness (is it fetched?), then generate. Split out so
+// the PDF-setup gate below can run first and resume here.
+async function checkItemThenGenerate() {
+  if (!selectedItem) return;
   const { id, portal: pk, kind, name } = selectedItem;
   setStatus(`Checking “${name}”…`, "busy");
   let status;
@@ -530,6 +532,31 @@ $("#genPdfBtn").addEventListener("click", async () => {
     return;
   }
   runGeneratePdf();
+}
+
+$("#genPdfBtn").addEventListener("click", async () => {
+  if (!selectedItem) { setStatus("Select an item in the table first."); return; }
+  if (!invoke) return;
+  // Two different questions, asked in order: can this MACHINE render a PDF
+  // (tools + fonts), and is this ITEM complete enough to be worth rendering.
+  try {
+    const report = await fetchPdfReport();
+    if (toolsMissing(report)) {
+      setStatus("PDF generation needs pandoc and typst — see PDF setup.");
+      openPdfSetup(report, null);
+      return;
+    }
+    if (fontsMissing(report) && !fontWarningDismissed) {
+      setStatus("Some theme fonts are missing.");
+      openPdfSetup(report, () => { fontWarningDismissed = true; checkItemThenGenerate(); });
+      return;
+    }
+  } catch (err) {
+    // A failed check must not block generation — the binary reports its own
+    // error if the pipeline is genuinely broken.
+    console.warn("pdf_doctor failed:", err);
+  }
+  checkItemThenGenerate();
 });
 
 $("#pdfIncompleteCancel").addEventListener("click", () => {
@@ -540,6 +567,164 @@ $("#pdfIncompleteContinue").addEventListener("click", () => {
   $("#pdfIncompleteModal").hidden = true;
   runGeneratePdf();
 });
+
+// --- PDF setup: the toolchain and the theme's fonts (backlog #5) ---
+// Rendering shells out to pandoc + typst and draws the theme's fonts from the
+// system font book; none of that ships with the app. `pdf --doctor` reports
+// what's missing and the per-OS step that fixes it. Missing TOOLS block
+// generation; missing FONTS only degrade it — typst substitutes silently and
+// still succeeds — so those are advisory, with a "Generate anyway".
+let pdfSetupProceed = null;      // what to run if the user accepts the warning
+let fontWarningDismissed = false; // don't re-nag about fonts every generate
+
+const fetchPdfReport = async () =>
+  JSON.parse(await invoke("pdf_doctor", { theme: $("#pdfTheme")?.value || "" }));
+
+const toolsMissing = (r) => (r.tools || []).some((t) => !t.found);
+const fontsMissing = (r) => r.fontsChecked && (r.fonts || []).some((f) => !f.found);
+
+// A row's fix-it button: copy an install command, or open a download page in the
+// user's real browser (never in this webview).
+function setupAction(kind, value) {
+  const btn = document.createElement("button");
+  btn.className = "btn ghost";
+  if (kind === "copy") {
+    btn.textContent = "Copy";
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(value);
+        btn.textContent = "Copied";
+        setTimeout(() => { btn.textContent = "Copy"; }, 1200);
+      } catch (_) {
+        setStatus("Could not copy — select the command and copy it manually.");
+      }
+    });
+  } else {
+    btn.textContent = "Get it…";
+    btn.addEventListener("click", () => {
+      invoke("open_external", { url: value }).catch((e) => setStatus("" + e));
+    });
+  }
+  return btn;
+}
+
+// state is "ok" | "bad" | "unknown"; action is [kind, value] or null.
+function setupRow(state, name, detail, action) {
+  const row = document.createElement("div");
+  row.className = "setup-row " + state;
+  const mark = document.createElement("span");
+  mark.className = "setup-mark";
+  mark.textContent = state === "ok" ? "✓" : state === "bad" ? "✗" : "?";
+  const label = document.createElement("span");
+  label.className = "setup-name";
+  label.textContent = name;
+  const det = document.createElement("span");
+  det.className = "setup-detail" + (action && action[0] === "copy" ? " cmd" : "");
+  det.textContent = detail || "";
+  det.title = detail || "";
+  row.append(mark, label, det);
+  if (action) row.appendChild(setupAction(action[0], action[1]));
+  return row;
+}
+
+// A group heading. `path` is kept in its own span because the heading is
+// uppercased in CSS and a filesystem path must not be (~/Library/Fonts).
+function setupGroup(text, path) {
+  const g = document.createElement("div");
+  g.className = "setup-group";
+  g.textContent = text;
+  if (path) {
+    const p = document.createElement("span");
+    p.className = "setup-group-path";
+    p.textContent = " — install to " + path;
+    g.appendChild(p);
+  }
+  return g;
+}
+
+function renderPdfSetup(r) {
+  const list = $("#pdfSetupList");
+  list.innerHTML = "";
+
+  list.appendChild(setupGroup("Tools", ""));
+  for (const t of r.tools || []) {
+    if (t.found) {
+      list.appendChild(setupRow("ok", t.name, t.version || t.path || "installed", null));
+    } else if (t.install) {
+      list.appendChild(setupRow("bad", t.name, t.install, ["copy", t.install]));
+    } else {
+      list.appendChild(setupRow("bad", t.name, t.url || "not installed",
+        t.url ? ["open", t.url] : null));
+    }
+  }
+
+  if ((r.fonts || []).length) {
+    list.appendChild(setupGroup("Fonts", r.fontDir));
+    for (const f of r.fonts) {
+      if (!r.fontsChecked) {
+        list.appendChild(setupRow("unknown", f.family, "needs typst before it can be checked", null));
+      } else if (f.found) {
+        list.appendChild(setupRow("ok", f.family, "installed", null));
+      } else {
+        list.appendChild(setupRow("bad", f.family, f.url || "not installed",
+          f.url ? ["open", f.url] : null));
+      }
+    }
+    if (r.fontNote) {
+      const note = document.createElement("p");
+      note.className = "setup-note";
+      note.textContent = r.fontNote;
+      list.appendChild(note);
+    }
+  }
+
+  const blocked = toolsMissing(r);
+  $("#pdfSetupSub").textContent = r.ok
+    ? `Everything the “${r.theme}” theme needs is installed.`
+    : blocked
+      ? "PDF generation needs these tools. Install them, then Re-check."
+      : "These fonts are missing — PDFs render with substitutes until you install them.";
+  $("#pdfSetupAnyway").hidden = blocked || r.ok || !pdfSetupProceed;
+}
+
+function openPdfSetup(report, proceed) {
+  pdfSetupProceed = proceed || null;
+  renderPdfSetup(report);
+  $("#pdfSetupModal").hidden = false;
+}
+
+function closePdfSetup() {
+  $("#pdfSetupModal").hidden = true;
+  pdfSetupProceed = null;
+}
+
+async function showPdfSetup(proceed) {
+  if (!invoke) return;
+  try {
+    openPdfSetup(await fetchPdfReport(), proceed);
+  } catch (err) {
+    setStatus("Could not check the PDF setup: " + err);
+  }
+}
+
+$("#pdfSetupClose").addEventListener("click", () => {
+  closePdfSetup();
+  setStatus("Ready.");
+});
+$("#pdfSetupAnyway").addEventListener("click", () => {
+  const go = pdfSetupProceed;
+  closePdfSetup();
+  if (go) go();
+});
+$("#pdfSetupRecheck").addEventListener("click", async () => {
+  if (!invoke) return;
+  try {
+    renderPdfSetup(await fetchPdfReport());
+  } catch (err) {
+    setStatus("Could not check the PDF setup: " + err);
+  }
+});
+$("#settingsPdfCheck").addEventListener("click", () => showPdfSetup(null));
 
 // --- Item management: right-click a Browse row (backlog #17) ---
 let ctxTarget = null; // dataset snapshot of the right-clicked row
