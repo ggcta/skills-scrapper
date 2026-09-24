@@ -1,10 +1,9 @@
 from datetime import datetime
 import json
 
-from bs4 import BeautifulSoup
-import requests
 from skills_scraper.config import BASE_URL, BASE_URL_PATHS, DATA_FOLDER_NAME, OUTPUT_FOLDER_NAME
 from skills_scraper.model.serialize import Serialize
+from skills_scraper.services.browser import get_page
 from pathlib import Path as PathlibPath
 
 
@@ -14,14 +13,93 @@ class Collection(Serialize):
     Base entity for collection: Courses, Paths, Lab.
     """
 
+    # Catalog API endpoint (paged JSON); subclasses that can be fetched set it.
+    API_URL: str = None
+    # Safety limit for the pagination loop, in case the API stops returning [].
+    MAX_PAGES: int = 100
+
     def __init__(self,
                  name: str = None,
                  url: str = BASE_URL,
-                 collection: dict = None):
+                 collection: dict = None,
+                 driver=None):
         self.name = name
         self.url = url
         self.date = str(datetime.today().date())
         self.collection = collection or {}
+        self.driver = driver
+
+    def fetch_catalog(self, force: bool = False) -> bool:
+        """
+        Gather every item of this collection from the paged catalog API,
+        read through the signed-in browser (the JSON lands in a <pre> tag).
+        Returns True on success.
+
+        :param force: If True, fetch even if the collection is not empty.
+        """
+        label = self.type.lower()
+
+        if not self.API_URL:
+            print(f"({self.type}.fetch_catalog) No catalog API for {label}.")
+            return False
+
+        if not force and self.collection:
+            print(f"({self.type}.fetch_catalog) Collection not empty. Skipping fetch.")
+            return True
+
+        print(f"Fetching {label} from API: {self.API_URL}")
+
+        items_found = {}
+        page = 1
+
+        try:
+            while True:
+                print(f"Fetching page {page}...", end='\r')
+                page_html = get_page(self.driver, f"{self.API_URL}&page={page}", f"{label} page {page}")
+                if page_html is None:
+                    break
+
+                # The browser renders the JSON response inside <pre>.
+                pre_element = page_html.select_one("pre")
+                json_text = pre_element.get_text() if pre_element else page_html.get_text()
+
+                try:
+                    data = json.loads(json_text)
+                except json.JSONDecodeError:
+                    print(f"\nFailed to decode JSON on page {page}")
+                    break
+
+                items = data if isinstance(data, list) else data.get("searchResults", [])
+                if not items:
+                    break
+
+                for item in items:
+                    title = item.get("title")
+                    item_path = item.get("path")
+                    if title and item_path:
+                        # /paths/16?locale=en -> 16 : drop the query, keep the last segment
+                        item_id = item_path.split('?')[0].split('/')[-1]
+                        if item_id:
+                            items_found[item_id] = title.strip()
+
+                page += 1
+                if page > self.MAX_PAGES:
+                    print(f"\nReached safety limit of {self.MAX_PAGES} pages.")
+                    break
+
+            print(f"\nTotal {label} found: {len(items_found)}")
+
+            if items_found:
+                self.collection = items_found
+                self.save_json()
+                return True
+
+            print(f"({self.type}.fetch_catalog) No {label} found.")
+            return False
+
+        except Exception as error:
+            print(f"({self.type}.fetch_catalog) Error occurred: {error}")
+            return False
 
     @property
     def type(self):
@@ -53,11 +131,9 @@ class Collection(Serialize):
     # Convert the entity's data to a dictionary without private attributes
     def to_dict(self):
         """
-        Convert the entity's data to a dictionary.
+        Convert the entity's data to a dictionary, without the browser.
         """
-        import time
-
-        collection_dict = {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+        collection_dict = {k: v for k, v in self.__dict__.items() if not k.startswith('_') and k != 'driver'}
         collection_dict['type'] = self.type
         
         return collection_dict

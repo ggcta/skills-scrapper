@@ -229,6 +229,7 @@ class CloudSkillsBoost:
                           f"{path_id} - {path_title}"
                           f"\033[0m\n")
                 else:
+                    self.paths_collection.driver = self.driver
                     self.paths_collection.fetch_paths()
                     self.paths_collection.save_json()
                     path_title = self.paths_collection.collection.get(path_id)
@@ -328,6 +329,7 @@ class CloudSkillsBoost:
                 print(f"\n"
                       "\033[35mDEBUG: RELOADING THE COURSES LIST... in several minutes\033[0m\n")
                 # Refresh Paths list
+                self.paths_collection.driver = self.driver
                 if self.paths_collection.fetch_paths():
                     print("Paths List refreshed. Proceed with courses of each path.\n")
                     self.paths_collection.save_json()

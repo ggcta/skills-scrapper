@@ -11,8 +11,9 @@ class Topics(Collection):
     def __init__(self,
                  name: str = None,
                  url: str = BASE_URL,
-                 collection: dict = None):
-        super().__init__(name, url, collection)
+                 collection: dict = None,
+                 driver=None):
+        super().__init__(name, url, collection, driver)
 
     def to_dict(self):
         """

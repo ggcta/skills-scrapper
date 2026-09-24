@@ -29,7 +29,8 @@ def cmd_list(args):
     # Reload if requested
     if args.reload:
         print(f"Reloading {label} list from remote...")
-        collection = target_class()
+        collection = target_class(driver=launch_browser(headless=False, browser="chrome",
+                                                        profile_folder=WEBDRIVER_PROFILE_FOLDER_NAME))
         collection.load_json()
         
         # Ensure URL is up to date (specifically for Paths)
@@ -54,6 +55,8 @@ def cmd_list(args):
                  print(f"Reload not supported for {label}.")
         except Exception as e:
             print(f"Error reloading {label}: {e}")
+        finally:
+            collection.driver.quit()
 
     print(f"Listing all {label}...")
     
