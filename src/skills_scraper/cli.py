@@ -29,8 +29,7 @@ def cmd_list(args):
     # Reload if requested
     if args.reload:
         print(f"Reloading {label} list from remote...")
-        collection = target_class(driver=launch_browser(headless=False, browser="chrome",
-                                                        profile_folder=WEBDRIVER_PROFILE_FOLDER_NAME))
+        collection = target_class(driver=launch_browser(headless=args.headless))
         collection.load_json()
         
         # Ensure URL is up to date (specifically for Paths)
@@ -97,7 +96,7 @@ def cmd_fetch(args):
 
     # One signed-in browser for the whole run; every page needs it nowadays.
     print("\n\033[35mLaunching the browser...\033[0m")
-    driver = launch_browser(headless=False, browser="chrome", profile_folder=WEBDRIVER_PROFILE_FOLDER_NAME)
+    driver = launch_browser(headless=args.headless)
     try:
         fetch_items(driver, fetch_paths_ids, fetch_courses_ids, fetch_labs_ids,
                     force=force, no_md=no_md, toc_only=toc_only, no_transcript=no_transcript)
@@ -234,7 +233,7 @@ def cmd_browser(args):
     
     profile = args.profile_folder if args.profile_folder else WEBDRIVER_PROFILE_FOLDER_NAME
     
-    driver = launch_browser(profile_folder=profile, headless=False, browser="chrome")
+    driver = launch_browser(profile_folder=profile, headless=False)
     
     # Open the URL in the default web browser (PARTNERS page usually redirects to login if not logged in)
     driver.get(BASE_URL_PARTNERS)
@@ -316,6 +315,7 @@ def main():
     
     # Reload flag
     parser_l.add_argument('--reload', '-r', action='store_true', help='Reload list from remote before listing')
+    parser_l.add_argument('--headless', action='store_true', help='Run the browser without a window (profile must be signed in)')
 
     # Mutually exclusive group for sorting
     group_sort = parser_l.add_mutually_exclusive_group()
@@ -335,6 +335,7 @@ def main():
     parser_f.add_argument('--no-md', action='store_true', help='Do not generate markdown file')
     parser_f.add_argument('--toc', '-t', action='store_true', help='Table of content only (structure only)')
     parser_f.add_argument('--no-transcript', action='store_true', help='Skip video transcripts (courses only)')
+    parser_f.add_argument('--headless', action='store_true', help='Run the browser without a window (profile must be signed in)')
     
     parser_f.set_defaults(func=cmd_fetch)
 

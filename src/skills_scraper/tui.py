@@ -1,5 +1,5 @@
 import sys
-from skills_scraper.config import BASE_URL_PARTNERS, OUTPUT_FOLDER_NAME, DATA_FOLDER_NAME, WEBDRIVER_PROFILE_FOLDER_NAME
+from skills_scraper.config import BASE_URL_PARTNERS, OUTPUT_FOLDER_NAME, DATA_FOLDER_NAME
 from skills_scraper.model.path import Path
 from skills_scraper.model.paths import Paths
 from skills_scraper.model.labs import Labs
@@ -19,8 +19,7 @@ class CloudSkillsBoost:
         """The signed-in browser, launched on first use and reused after that."""
         if self._driver is None:
             print("\n\033[35mLaunching the browser...\033[0m\n")
-            self._driver = launch_browser(profile_folder=WEBDRIVER_PROFILE_FOLDER_NAME,
-                                          headless=False)
+            self._driver = launch_browser()
         return self._driver
 
     def close(self):

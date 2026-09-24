@@ -1,105 +1,73 @@
 import os
+from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.edge.options import Options as EdgeOptions
 from selenium.webdriver.edge.service import Service as EdgeService
-from typing import Optional
-from bs4 import BeautifulSoup
-from skills_scraper.config import WEBDRIVER_PROFILE_FOLDER_NAME
+from skills_scraper.config import WEBDRIVER_BROWSER, WEBDRIVER_OPTIONS_HEADLESS, WEBDRIVER_PROFILE_FOLDER_NAME
+
+# Chromium flags shared by Chrome and Edge: quiet, no first-run noise, and
+# not announcing itself as automation (the site is happier that way).
+BROWSER_ARGUMENTS = [
+    "--disable-extensions",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--disable-background-networking",
+    "--disable-background-timer-throttling",
+    "--disable-backgrounding-occluded-windows",
+    "--disable-breakpad",
+    "--disable-client-side-phishing-detection",
+    "--disable-default-apps",
+    "--disable-hang-monitor",
+    "--disable-popup-blocking",
+    "--disable-prompt-on-repost",
+    "--disable-renderer-backgrounding",
+    "--disable-sync",
+    "--disable-translate",
+    "--metrics-recording-only",
+    "--no-first-run",
+    "--safebrowsing-disable-auto-update",
+    "--password-store=basic",
+    "--use-mock-keychain",
+    "--disable-blink-features=AutomationControlled",
+    "log-level=3",
+]
+
+BROWSERS = {
+    "chrome": (ChromeOptions, ChromeService, webdriver.Chrome),
+    "edge": (EdgeOptions, EdgeService, webdriver.Edge),
+}
 
 
-# Launch a browser with the specified profile and headless mode
-def launch_browser(profile_folder: Optional[str] = None,
-                   headless=True,
-                   browser="chrome" or None):
+def launch_browser(profile_folder=WEBDRIVER_PROFILE_FOLDER_NAME,
+                   headless: bool = WEBDRIVER_OPTIONS_HEADLESS,
+                   browser: str = WEBDRIVER_BROWSER):
     """
-    Launches a Selenium WebDriver instance with the specified browser and profile path.
-    A default browser profile will be set to ./webdriver_profiles/ if no profile path is provided.
+    Launch a Selenium WebDriver (Chrome or Edge) on a persistent profile.
+
+    The profile folder keeps the signed-in session between runs, so the
+    sign-in prompt shows up once, not every time. Pass profile_folder=None
+    for a throwaway profile. Defaults come from config.yaml.
     """
+    try:
+        options_class, service_class, driver_class = BROWSERS[browser.lower()]
+    except KeyError:
+        raise ValueError(f"Unsupported browser: {browser} (chrome or edge)")
 
-    # Launch Chrome browser
-    if browser.lower() == "chrome":
-        options = Options()
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-background-networking")
-        options.add_argument("--disable-background-timer-throttling")
-        options.add_argument("--disable-backgrounding-occluded-windows")
-        options.add_argument("--disable-breakpad")
-        options.add_argument("--disable-client-side-phishing-detection")
-        options.add_argument("--disable-default-apps")
-        options.add_argument("--disable-hang-monitor")
-        options.add_argument("--disable-popup-blocking")
-        options.add_argument("--disable-prompt-on-repost")
-        options.add_argument("--disable-renderer-backgrounding")
-        options.add_argument("--disable-sync")
-        options.add_argument("--disable-translate")
-        options.add_argument("--metrics-recording-only")
-        options.add_argument("--no-first-run")
-        options.add_argument("--safebrowsing-disable-auto-update")
-        options.add_argument("--enable-automation")
-        options.add_argument("--password-store=basic")
-        options.add_argument("--use-mock-keychain")
-        options.add_argument('log-level=3')
-        options.add_experimental_option("excludeSwitches", ["enable-logging", "enable-automation"])
+    options = options_class()
+    for argument in BROWSER_ARGUMENTS:
+        options.add_argument(argument)
+    options.add_experimental_option("excludeSwitches", ["enable-logging", "enable-automation"])
 
-        # Set the headless mode, default is True
-        if headless:
-            options.add_argument("--headless")
+    # The "new" headless mode is the one that behaves like a real window.
+    if headless:
+        options.add_argument("--headless=new")
 
-        # Set the profile folder, default is None
-        if profile_folder:
-            webdriver_profile_path = os.path.join(os.getcwd(), profile_folder)
-            options.add_argument(f"user-data-dir={webdriver_profile_path}")
+    if profile_folder:
+        options.add_argument(f"user-data-dir={os.path.abspath(profile_folder)}")
 
-        service = ChromeService()
-        driver = webdriver.Chrome(service=service, options=options)
-
-    # Launch Edge browser
-    elif browser.lower() == "edge":
-        options = EdgeOptions()
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-background-networking")
-        options.add_argument("--disable-background-timer-throttling")
-        options.add_argument("--disable-backgrounding-occluded-windows")
-        options.add_argument("--disable-breakpad")
-        options.add_argument("--disable-client-side-phishing-detection")
-        options.add_argument("--disable-default-apps")
-        options.add_argument("--disable-hang-monitor")
-        options.add_argument("--disable-popup-blocking")
-        options.add_argument("--disable-prompt-on-repost")
-        options.add_argument("--disable-renderer-backgrounding")
-        options.add_argument("--disable-sync")
-        options.add_argument("--disable-translate")
-        options.add_argument("--metrics-recording-only")
-        options.add_argument("--no-first-run")
-        options.add_argument("--safebrowsing-disable-auto-update")
-        options.add_argument("--enable-automation")
-        options.add_argument("--password-store=basic")
-        options.add_argument("--use-mock-keychain")
-        options.add_argument('log-level=3')
-        options.add_experimental_option("excludeSwitches", ["enable-logging", "enable-automation"])
-
-        if headless:
-            options.add_argument("--headless")
-
-        if profile_folder:
-            webdriver_profile_path = os.path.join(os.getcwd(), profile_folder)
-            options.add_argument(f"user-data-dir={webdriver_profile_path}")
-
-        service = EdgeService()
-        driver = webdriver.Edge(service=service, options=options)
-
-    else:
-        raise ValueError("Unsupported browser: {}".format(browser))
-
-    return driver
+    return driver_class(service=service_class(), options=options)
 
 
 def ensure_authenticated(driver, url: str, what: str = "") -> bool:
