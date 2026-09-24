@@ -6,6 +6,26 @@ from skills_scraper.utils.utils import util_replace_quote_marks, util_replace_sp
 from skills_scraper.model.serialize import Serialize
 
 
+def yaml_scalar(value) -> str:
+    """A string as a valid, fully escaped YAML scalar (JSON strings are YAML)."""
+    return json.dumps(str(value) if value is not None else "", ensure_ascii=False)
+
+
+def yaml_list(values) -> str:
+    """A flow-style YAML list of strings, [] when empty."""
+    return "[" + ", ".join(yaml_scalar(v) for v in values) + "]"
+
+
+def first_sentence(text: str, limit: int = 240) -> str:
+    """The first sentence of a description, capped, for the one-line OKF summary."""
+    first = text.strip().split("\n")[0]
+    for mark in (". ", "! ", "? "):
+        if mark in first:
+            first = first.split(mark)[0] + mark.strip()
+            break
+    return first if len(first) <= limit else first[:limit - 3].rstrip() + "..."
+
+
 class BaseEntity(Serialize):
     """
     Base class for all entities including Path, Course, and Lab.
@@ -174,46 +194,52 @@ class BaseEntity(Serialize):
 
     def generate_front_matter(self) -> str:
         """
-        Generate the front matter for the Markdown file.
+        Generate the YAML front matter for the Markdown file.
 
-        Order:
-        - id
-        - name
-        - type
-        - url
-        - date_published
-        - topics
-        - scraped_date
+        The keys are a superset of Open Knowledge Format v0.2 (type, title,
+        description, resource, tags, sources, generated) plus this tool's own
+        keys (id, portal) and the legacy names existing vaults query on
+        (url, date_published, topics, scraped_date). Scalars go through
+        json.dumps, which is valid YAML and never breaks on a quote.
         """
         from datetime import datetime
-        import time
+        from skills_scraper import __version__
 
-        front_matter_lines = ["---"]
-        if hasattr(self, 'id'):
-            front_matter_lines.append(f"id: '{self.id}'")
-        if hasattr(self, 'name'):
-            front_matter_lines.append(f"name: '{self.name}'")
-        if hasattr(self, 'type'):
-            front_matter_lines.append(f"type: {self.type}")
-        if hasattr(self, 'url'):
-            front_matter_lines.append(f"url: {self.url}")
-        if hasattr(self, 'datePublished'):
-            front_matter_lines.append(f"date_published: {self.datePublished}")
-        if hasattr(self, 'topics'):
-            front_matter_lines.append(f"topics:\n" + "\n".join([f"  - {topic}" for topic in self.topics]))
-            
-        # Add scraped_date
         scraped_ts = getattr(self, 'scrapedTime', None)
-        if scraped_ts:
-             dt = datetime.fromtimestamp(scraped_ts / 1000.0)
-             front_matter_lines.append(f"scraped_date: {dt.strftime('%Y-%m-%d')}")
-        else:
-             # If not present, use current time
-             now = datetime.now()
-             front_matter_lines.append(f"scraped_date: {now.strftime('%Y-%m-%d')}")
+        scraped_at = datetime.fromtimestamp(scraped_ts / 1000.0) if scraped_ts else datetime.now()
+        scraped_at = scraped_at.astimezone()
+        date_published = getattr(self, 'datePublished', None) or None
+        topics = getattr(self, 'topics', None) or []
+        description = self.description or ""
 
-        front_matter_lines.append("---")
-        return "\n".join(front_matter_lines)
+        lines = ["---"]
+        lines.append(f"id: {yaml_scalar(self.id)}")
+        lines.append(f"title: {yaml_scalar(self.name)}")
+        lines.append(f"type: {self.type}")
+        lines.append("portal: public")
+        if description:
+            lines.append(f"description: {yaml_scalar(first_sentence(description))}")
+        lines.append(f"resource: {self.url}")
+        if topics:
+            lines.append(f"tags: {yaml_list(topics)}")
+        lines.append("sources:")
+        lines.append(f"  - resource: {self.url}")
+        lines.append(f"    title: {yaml_scalar(f'Google Skills {self.type.lower()} {self.id}')}")
+        lines.append("    author: Google Cloud")
+        if date_published:
+            lines.append(f"    last_modified: {date_published}")
+        lines.append("generated:")
+        lines.append(f"  by: skills-scraper/{__version__}")
+        lines.append(f"  at: {scraped_at.isoformat(timespec='seconds')}")
+        # Legacy names, kept so existing vault queries keep working.
+        lines.append(f"url: {self.url}")
+        if date_published:
+            lines.append(f"date_published: {date_published}")
+        if hasattr(self, 'topics'):
+            lines.append(f"topics: {yaml_list(topics)}")
+        lines.append(f"scraped_date: {scraped_at.strftime('%Y-%m-%d')}")
+        lines.append("---")
+        return "\n".join(lines)
 
     def generate_markdown(self, **kwargs) -> str:
         """

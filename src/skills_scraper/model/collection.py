@@ -3,6 +3,7 @@ import json
 
 from skills_scraper.config import BASE_URL, BASE_URL_PATHS, DATA_FOLDER_NAME, OUTPUT_FOLDER_NAME
 from skills_scraper.model.serialize import Serialize
+from skills_scraper.model.base_entity import yaml_scalar
 from skills_scraper.services.browser import get_page
 from pathlib import Path as PathlibPath
 
@@ -284,7 +285,8 @@ class Collection(Serialize):
         # Add front matter
         front_matter_lines = ["---",
                               f"type: {self.type}",
-                              f"name: '{self.name}'",
+                              f"title: {yaml_scalar(self.name)}",
+                              f"resource: {self.url}",
                               f"url: {self.url}",
                               f"date: {self.date}",
                               f"scraped_date: {scraped_date}",
