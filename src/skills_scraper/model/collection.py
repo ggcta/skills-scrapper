@@ -5,6 +5,7 @@ from skills_scraper.config import BASE_URL, BASE_URL_PATHS, DATA_FOLDER_NAME, OU
 from skills_scraper.model.serialize import Serialize
 from skills_scraper.model.base_entity import yaml_scalar
 from skills_scraper.services.browser import get_page
+from skills_scraper.services.store import Index
 from pathlib import Path as PathlibPath
 
 
@@ -139,71 +140,35 @@ class Collection(Serialize):
         
         return collection_dict
     
-    # Load the collection from a JSON file
+    @property
+    def _kind(self):
+        """
+        Table name in the index: paths, courses, labs (the class name, lowered).
+        """
+        return self.type.lower()
+
+    # Load the collection from the index
     def load_json(self):
         """
-        Load the collection from the Database (TinyDB).
+        Load {id: name} for this kind from data/index.json.
         """
-        from skills_scraper.services.database import Database
-        
-        db = Database()
-        # Use plural table name
-        table_name = f"{self.type.lower()}"
-        if self.type.lower() == 'path': table_name = 'paths' # just in case
-        
-        # Collection usually stores a dict of {id: name}
-        # But TinyDB stores documents {id: ..., name: ..., type: ...}
-        # We need to reconstruction the collection dict {id: name} from DB docs
-        
-        docs = db.all(table_name)
-        self.collection = {}
-        for doc in docs:
-            doc_id = doc.get('id')
-            doc_name = doc.get('name')
-            if doc_id:
-                self.collection[doc_id] = doc_name
+        self.collection = {item_id: entry.get('name', 'Unknown')
+                           for item_id, entry in Index().all(self._kind).items()}
 
-    # Save the collection to a JSON file
+    # Save the collection to the index
     def save_json(self):
         """
-        Save the collection to the Database (TinyDB).
-        This will UPSERT items.
+        Upsert every {id: name} of this collection into data/index.json.
+        Names may be plain strings or dicts carrying a 'name'.
         """
         import time
-        # Update scrapedTime
         self.scrapedTime = int(time.time() * 1000)
 
-        # Sync items to TinyDB
-        try:
-            from skills_scraper.services.database import Database
-            db = Database()
-            
-            # Determine table name (Plural: Paths, Courses, Labs)
-            # self.type is usually plural e.g. 'Paths'
-            table_name = self.type.lower()
-            
-            if self.collection:
-                for item_id, item_val in self.collection.items():
-                    # item_val is usually name (str) or dict?
-                    name = item_val
-                    if isinstance(item_val, dict):
-                        name = item_val.get('name', 'Unknown')
-                    
-                    # We need to fetch existing doc to preserve other fields if any?
-                    # Or just upsert id/name/type?
-                    # If we only have ID and Name in collection, we might overwrite other details if we are not careful
-                    # But Collection.save_json is usually called after fetching a list of items (id, name).
-                    # If we upsert {id, name, type}, it matches TinyDB upsert logic which updates fields.
-                    
-                    doc = {
-                        'id': item_id,
-                        'name': name,
-                        'type': table_name
-                    }
-                    db.upsert(table_name, doc)
-                    
-        except Exception as e:
-            print(f"(Collection.save_json) Error syncing to DB: {e}")
+        index = Index()
+        for item_id, item_val in self.collection.items():
+            name = item_val.get('name', 'Unknown') if isinstance(item_val, dict) else item_val
+            index.upsert(self._kind, {'id': item_id, 'name': name})
+        index.save()
 
     def print_list(self, sort_by: str = 'name'):
         """

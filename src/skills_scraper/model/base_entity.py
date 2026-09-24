@@ -4,6 +4,7 @@ from skills_scraper.config import BASE_URL_COURSES, BASE_URL_LAB, BASE_URL_PATHS
 from pathlib import Path as PathlibPath
 from skills_scraper.utils.utils import util_replace_quote_marks, util_replace_special_chars, util_strip_html_tags
 from skills_scraper.model.serialize import Serialize
+from skills_scraper.services.store import Index, read_json, write_json
 
 
 def yaml_scalar(value) -> str:
@@ -121,76 +122,38 @@ class BaseEntity(Serialize):
         
         return the_dict
 
-    # Load the entity data from a JSON file
+    @property
+    def _kind(self):
+        """
+        Table name in the index: paths, courses, labs.
+        """
+        return f"{self.type.lower()}s"
+
+    # Load the entity data from its JSON file
     def load_json(self):
         """
-        Load the entity data from the Database (TinyDB).
-        If the entity doesn't exist, load an empty {}.
+        Load the entity data from data/<kind>/<id>.json, the source of truth.
+        Nothing happens when the file does not exist yet.
         """
-        from skills_scraper.services.database import Database
-        import logging
-        
-        db = Database()
-        # Use plural table name
-        table_name = f"{self.type.lower()}s"
-        if self.type.lower().endswith('s'):
-            table_name = self.type.lower()
-            
-        data = db.get(table_name, self.id)
-        
+        data = read_json(self._json_path)
         if data:
             self.__dict__.update(data)
-        else:
-            # If not found in DB, we could try file system as fallback?
-            # For now, let's assume DB is source of truth.
-            # But during migration or mixed state, file might exist.
-            # Plan said: "Update load_json to fetch data from Database service (TinyDB) instead of file system."
-            # So we strictly use DB.
-            pass
 
     def save_json(self):
         """
-        Save the entity data to the Database (TinyDB) AND a JSON file (Backup).
+        Write the entity to its JSON file (atomically) and update the index.
         """
-        
-        # Convert the entity data to a dictionary
         entity_data = self.to_dict()
-
-        # 1. UPSERT to Database
         try:
-            from skills_scraper.services.database import Database
-            db = Database()
-            # Use plural table name (e.g. 'Course' -> 'courses')
-            table_name = f"{self.type.lower()}s"
-            if self.type.lower().endswith('s'):
-                table_name = self.type.lower()
-                
-            db.upsert(table_name, entity_data)
-        except Exception as e:
-            print(f"(BaseEntity.save_json) Error syncing to DB: {e}")
-
-        # 2. SAVE to individual JSON file (Backup)
-        # Create the folder if it doesn't exist
-        if not self._json_path.parent.exists():
-            self._json_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Create the JSON file if it doesn't exist
-        # Save the data to a JSON file with UTF-8 encoding and Unix line endings
-        try:
-            with open(self._json_path, 'w',
-                    encoding='utf-8',
-                    newline='\n') as jsonfile:
-                json.dump(entity_data,
-                        jsonfile,
-                        ensure_ascii=False,
-                        indent=2)
-        except IOError as e:
+            write_json(self._json_path, entity_data)
+        except OSError as e:
             print(f"(BaseEntity.save_json) Error writing JSON to file: {self._json_path}")
             print(e)
-        except json.JSONDecodeError:
-            print(f"(BaseEntity.save_json) Error decoding JSON from file: {self._json_path}")
-        except Exception as e:
-            print(f"(BaseEntity.save_json) An unexpected error occurred: {e}")
+            return
+
+        index = Index()
+        index.upsert(self._kind, entity_data)
+        index.save()
 
     def generate_front_matter(self) -> str:
         """

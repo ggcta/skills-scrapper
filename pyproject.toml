@@ -8,7 +8,6 @@ dependencies = [
     "selenium>=4.40",
     "beautifulsoup4>=4.12",
     "requests>=2.32",
-    "tinydb>=4.8",
     "pyyaml>=6.0.3",
 ]
 

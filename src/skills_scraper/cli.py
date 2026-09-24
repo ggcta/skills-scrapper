@@ -10,6 +10,7 @@ from skills_scraper.model.courses import Courses
 from skills_scraper.model.labs import Labs
 from skills_scraper.model.lab import Lab
 from skills_scraper.services.browser import launch_browser
+from skills_scraper.services.store import Index
 
 def cmd_list(args):
     """Handle list command"""
@@ -175,8 +176,6 @@ def fetch_items(driver, fetch_paths_ids, fetch_courses_ids, fetch_labs_ids,
 
 def cmd_search(args):
     """Handle search command"""
-    from skills_scraper.services.database import Database
-    
     query = args.query
     # Determine type from flags
     search_type = None
@@ -189,8 +188,8 @@ def cmd_search(args):
         
     field = args.field
     
-    db = Database()
-    
+    index = Index()
+
     # Determine tables to search
     tables = []
     
@@ -214,7 +213,7 @@ def cmd_search(args):
     
     total_results = 0
     for table in tables:
-        results = db.search(table, query, field)
+        results = index.search(table, query, field)
         if results:
             print(f"\n--- {table} ({len(results)}) ---")
             for res in results:
@@ -300,6 +299,12 @@ def cmd_md(args):
             lab.save_markdown(toc_only=toc_only)
             print(f"Markdown saved to {lab._md_path}")
 
+def cmd_reindex(args):
+    """Rebuild data/index.json from the entity files"""
+    counts = Index().rebuild()
+    for kind, count in counts.items():
+        print(f"{kind:>8}: {count}")
+
 def main():
     parser = argparse.ArgumentParser(description="CloudSkillsBoost Scraper CLI")
     subparsers = parser.add_subparsers(dest='command', help='Command to execute')
@@ -354,13 +359,17 @@ def main():
     parser_m.set_defaults(func=cmd_md)
 
     # Search command
-    parser_s = subparsers.add_parser('search', aliases=['s'], help='Search in database')
+    parser_s = subparsers.add_parser('search', aliases=['s'], help='Search the downloaded data')
     parser_s.add_argument('query', help='Search query')
     parser_s.add_argument('--course', '-c', action='store_true', help='Search in courses')
     parser_s.add_argument('--path', '-p', action='store_true', help='Search in paths')
     parser_s.add_argument('--lab', '-l', action='store_true', help='Search in labs')
     parser_s.add_argument('--field', '-f', help='Limit search to specific field', default=None)
     parser_s.set_defaults(func=cmd_search)
+
+    # Reindex command
+    parser_r = subparsers.add_parser('reindex', help='Rebuild the index from the JSON files')
+    parser_r.set_defaults(func=cmd_reindex)
 
     # Parse arguments
     args = parser.parse_args()
