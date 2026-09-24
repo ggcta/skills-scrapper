@@ -187,26 +187,30 @@ class Course(BaseEntity):
         Process each step in a module.
         """
 
+        # One handler per activity kind. The set of kinds belongs to the site, not to us:
+        # a kind we have never seen (badge, credential, ...) is kept as-is and logged.
+        handlers = {
+            "video": self.process_video,
+            "lab": self.process_lab,
+            "quiz": self.process_quiz,
+            "link": self.process_link,
+            "html_bundle": self.process_link,
+            "document": self.process_document,
+        }
+
         for activity in step['activities']:
             # Fix HREF if it is a session URL
             if activity.get('href') and '/course_sessions/' in activity['href']:
                  activity['href'] = re.sub(r'/course_sessions/[^/]+', f'/course_templates/{self.id}', activity['href'])
 
             activity_type = activity['type']
-            activity_id = activity['id']
-            activity_title = activity['title'].strip()
             activity_full_url = f"{BASE_URL}{activity['href']}"
 
-            if activity_type == "video":
-                self.process_video(activity, activity_full_url)
-            elif activity_type == "lab":
-                self.process_lab(activity, activity_full_url)
-            elif activity_type == "quiz":
-                self.process_quiz(activity, activity_full_url)
-            elif activity_type == "link":
-                self.process_link(activity, activity_full_url)
-            elif activity_type == "document":
-                self.process_document(activity, activity_full_url)
+            handler = handlers.get(activity_type)
+            if handler:
+                handler(activity, activity_full_url)
+            else:
+                print(f"(process_step) •-> {activity_type}: {activity['id']:>6} - {activity['title']} (kept as-is, no handler)")
 
     def process_video(self, activity, url) -> None:
         """
@@ -509,7 +513,7 @@ class Course(BaseEntity):
         Process a link activity.
         """
 
-        print(f"(process_link) •-> Lnk: {activity['id']:>6} - {activity['title']}")
+        print(f"(process_link) •-> {activity['type'][:3].title()}: {activity['id']:>6} - {activity['title']}")
         try:
             link_page_html = get_page(self.driver, url, f"link {activity['id']}")
             if link_page_html is None:
@@ -725,7 +729,7 @@ class Course(BaseEntity):
 
             if hasattr(self, 'objectives') and self.objectives:
                 markdown.append("**Objectives:**")
-                markdown.append("\n".join([f"* {util_replace_quote_marks(objective)}" for objective in self.objectives]))
+                markdown.append("\n".join([f"- {util_replace_quote_marks(objective)}" for objective in self.objectives]))
 
         if hasattr(self, 'modules') and self.modules:
             for module in self.modules:
@@ -743,20 +747,24 @@ class Course(BaseEntity):
                         activity_type = activity['type']
                         activity_href = activity['href']
 
-                        markdown.append(f"### {activity_type.title()} - [{activity_title}]({BASE_URL}{activity_href if activity_href else ''})")
+                        heading_kind = "HTML" if activity_type == 'html_bundle' else activity_type.title()
+                        markdown.append(f"### {heading_kind} - [{activity_title}]({BASE_URL}{activity_href if activity_href else ''})")
 
                         if activity_type == 'video':
-                            markdown.append(f"* [YouTube: {activity_title}](https://www.youtube.com/watch?v={activity['videoId']})")
+                            video_id = activity.get('videoId')
+                            if video_id:
+                                markdown.append(f"- [YouTube: {activity_title}](https://www.youtube.com/watch?v={video_id})")
+                            elif activity_href:
+                                markdown.append(f"- [Video Link]({BASE_URL}{activity_href})")
                             if not toc_only and not no_transcript:
                                 markdown.append(f"{util_replace_quote_marks(activity.get('transcript', '(No transcript available)'))}")
 
                         elif activity_type == 'lab':
-                            markdown.append(activity.get('description'))
+                            if activity.get('description'):
+                                markdown.append(activity['description'])
                             lab_md_name = f"{util_replace_special_chars(activity_title)}.md"
-                            if activity['isComplete'] is False:
-                                markdown.append(f"* [ ] [{activity_title}](../labs/{lab_md_name})")
-                            else:
-                                markdown.append(f"* [x] [{activity_title}](../labs/{lab_md_name})")
+                            tick = "x" if activity.get('isComplete') else " "
+                            markdown.append(f"- [{tick}] [{activity_title}](../labs/{lab_md_name})")
 
                         elif activity_type == 'quiz':
                             if not toc_only and activity.get('quizItems'):
@@ -774,12 +782,13 @@ class Course(BaseEntity):
 
                                     if quizItem.get('options'):
                                         for option in quizItem.get('options', []):
-                                            quiz_list.append(f"> * [ ] {self.clean_text(option.get('title'))}")
+                                            quiz_list.append(f"> - [ ] {self.clean_text(option.get('title'))}")
                                     markdown.append("\n".join(quiz_list))
                                     quiz_number += 1
 
-                        elif activity_type == 'link':
-                            markdown.append(f"* [{activity_title}]({activity['link']})")
+                        elif activity_type in ('link', 'html_bundle'):
+                            link_url = activity.get('link') or (f"{BASE_URL}{activity_href}" if activity_href else "")
+                            markdown.append(f"- [{activity_title}]({link_url})")
                             if not toc_only and not no_transcript:
                                 if activity.get('transcript'):
                                     markdown.append("\n" + activity['transcript'] + "\n")
