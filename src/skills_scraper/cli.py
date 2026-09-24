@@ -100,14 +100,19 @@ def cmd_fetch(args):
     driver = launch_browser(headless=args.headless)
     try:
         fetch_items(driver, fetch_paths_ids, fetch_courses_ids, fetch_labs_ids,
-                    force=force, no_md=no_md, toc_only=toc_only, no_transcript=no_transcript)
+                    force=force, no_md=no_md, toc_only=toc_only, no_transcript=no_transcript,
+                    cascade=args.cascade)
     finally:
         print("Closing browser...")
         driver.quit()
 
 def fetch_items(driver, fetch_paths_ids, fetch_courses_ids, fetch_labs_ids,
-                force=False, no_md=False, toc_only=False, no_transcript=False):
-    """Fetch the given paths, courses and labs through one browser session."""
+                force=False, no_md=False, toc_only=False, no_transcript=False, cascade=False):
+    """
+    Fetch the given paths, courses and labs through one browser session.
+    With cascade, every course of a fetched path is queued for fetching too.
+    """
+    fetch_courses_ids = list(fetch_courses_ids or [])
 
     # --- Paths ---
     if fetch_paths_ids:
@@ -116,36 +121,26 @@ def fetch_items(driver, fetch_paths_ids, fetch_courses_ids, fetch_labs_ids,
             try:
                 print(f"Processing Path {pid}...")
                 p = Path(id=pid, driver=driver)
-                # Load existing to see if we need to fetch? 
-                # Fetch command implies scraping/updating.
-                
-                # Fetch data (scrapes remote)
                 p.fetch_data()
-                p.save_json() # Backs up to file and syncs to DB
-                
+                p.save_json()
+
                 if not no_md:
                     p.save_markdown(toc_only=toc_only)
                     print(f"Path {pid} markdown updated.")
                 print(f"Path {pid} updated.")
-                
-                # Original logic: update courses collection with courses found in path
-                # This helps populate courses list without fetching all courses
+
+                # The courses of a path are known now: list them without a full catalog reload,
+                # and queue them when cascading. Standalone labs come with their parent course.
                 courses_collection = Courses()
-                # We load just to be safe, but save_json will Upsert to DB which is fine
-                
-                # But Courses.collection is a dict {id: name}. 
-                # We can't easily upsert to DB directly from here without loading Courses logic
-                # Actually, Courses.save_json upserts the whole collection dict to DB.
-                # So we should load it first to avoid overwriting with partial data if we use save_json.
                 courses_collection.load_json()
-                
                 for course in p.courses.values():
                     if course.get('type', '').lower() == 'lab':
                         continue
                     courses_collection.collection[course['id']] = course['name']
-                
+                    if cascade and course['id'] not in fetch_courses_ids:
+                        fetch_courses_ids.append(course['id'])
                 courses_collection.save_json()
-                
+
             except Exception as e:
                 print(f"Failed to fetch path {pid}: {e}")
 
@@ -340,6 +335,7 @@ def main():
     parser_f.add_argument('--no-md', action='store_true', help='Do not generate markdown file')
     parser_f.add_argument('--toc', '-t', action='store_true', help='Table of content only (structure only)')
     parser_f.add_argument('--no-transcript', action='store_true', help='Skip video transcripts (courses only)')
+    parser_f.add_argument('--cascade', action='store_true', help='After a path, fetch every course in it')
     parser_f.add_argument('--headless', action='store_true', help='Run the browser without a window (profile must be signed in)')
     
     parser_f.set_defaults(func=cmd_fetch)
