@@ -1,9 +1,9 @@
 import json
 from bs4 import BeautifulSoup
 import requests
-from utils.utils import util_replace_special_chars
-from config.settings import *
-from models.base_entity import BaseEntity
+from skills_scraper.utils.utils import util_replace_special_chars
+from skills_scraper.config.settings import *
+from skills_scraper.model.base_entity import BaseEntity
 
 # Constants for the extraction of the course data
 LD_JSON = "script[type='application/ld+json']"

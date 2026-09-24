@@ -368,7 +368,7 @@ wheels = [
 [[package]]
 name = "skills-scraper"
 version = "2.0.1"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "requests" },

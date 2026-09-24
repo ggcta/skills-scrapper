@@ -1,9 +1,9 @@
 import html
 import json
-from config.settings import BASE_URL_COURSES, BASE_URL_LAB, BASE_URL_PATHS, DATA_FOLDER_NAME, OUTPUT_FOLDER_NAME
+from skills_scraper.config.settings import BASE_URL_COURSES, BASE_URL_LAB, BASE_URL_PATHS, DATA_FOLDER_NAME, OUTPUT_FOLDER_NAME
 from pathlib import Path as PathlibPath
-from utils.utils import util_replace_quote_marks, util_replace_special_chars, util_strip_html_tags
-from models.serialize import Serialize
+from skills_scraper.utils.utils import util_replace_quote_marks, util_replace_special_chars, util_strip_html_tags
+from skills_scraper.model.serialize import Serialize
 
 
 class BaseEntity(Serialize):
@@ -107,7 +107,7 @@ class BaseEntity(Serialize):
         Load the entity data from the Database (TinyDB).
         If the entity doesn't exist, load an empty {}.
         """
-        from services.database import Database
+        from skills_scraper.services.database import Database
         import logging
         
         db = Database()
@@ -138,7 +138,7 @@ class BaseEntity(Serialize):
 
         # 1. UPSERT to Database
         try:
-            from services.database import Database
+            from skills_scraper.services.database import Database
             db = Database()
             # Use plural table name (e.g. 'Course' -> 'courses')
             table_name = f"{self.type.lower()}s"

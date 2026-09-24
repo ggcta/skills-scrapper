@@ -17,10 +17,13 @@ dev = [
     "ruff",
 ]
 
-# Not a package yet: app/ is a flat folder of modules run as scripts.
-# The src/ layout and the console scripts come in the next commit.
-[tool.uv]
-package = false
+[project.scripts]
+skills-scraper = "skills_scraper.cli:main"
+skills-scraper-tui = "skills_scraper.tui:main"
+
+[build-system]
+requires = ["uv_build>=0.8,<0.13"]
+build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 100

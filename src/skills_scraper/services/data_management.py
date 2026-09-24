@@ -5,12 +5,12 @@ import re
 from bs4 import BeautifulSoup
 from selenium.common import NoSuchElementException
 import requests
-from config.settings import BASE_URL_LAB, LAB_CONTENT_OUTLINE, LAB_REVIEW_LAB_ID, LAB_TITLE, LD_JSON, META_DESCRIPTION, COURSE_OUTLINE, META_DESCRIPTION, PATH_CARDS
-from models.collection import Collection
-from models.course import Course
-from models.lab import Lab
-from models.path import Path
-from utils.utils import util_replace_quote_marks, util_strip_html_tags
+from skills_scraper.config.settings import BASE_URL_LAB, LAB_CONTENT_OUTLINE, LAB_REVIEW_LAB_ID, LAB_TITLE, LD_JSON, META_DESCRIPTION, COURSE_OUTLINE, META_DESCRIPTION, PATH_CARDS
+from skills_scraper.model.collection import Collection
+from skills_scraper.model.course import Course
+from skills_scraper.model.lab import Lab
+from skills_scraper.model.path import Path
+from skills_scraper.utils.utils import util_replace_quote_marks, util_strip_html_tags
 
 class DataManagement():
     def __init__(self):

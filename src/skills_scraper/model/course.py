@@ -1,19 +1,19 @@
 import re
 import time
 from pathlib import Path as PathlibPath
-from models.base_entity import BaseEntity
-from models.labs import Labs
-from models.lab import Lab
+from skills_scraper.model.base_entity import BaseEntity
+from skills_scraper.model.labs import Labs
+from skills_scraper.model.lab import Lab
 from selenium.common import NoSuchElementException
 import json
 import html
 import requests
 from bs4 import BeautifulSoup
-from config.settings import BASE_URL, QL_IFRAME
+from skills_scraper.config.settings import BASE_URL, QL_IFRAME
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from utils.utils import util_replace_quote_marks, util_replace_special_chars, util_strip_html_tags
+from skills_scraper.utils.utils import util_replace_quote_marks, util_replace_special_chars, util_strip_html_tags
 
 # TODO: Convert these constants to Enums
 # Constants for the extraction of the course data

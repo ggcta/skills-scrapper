@@ -1,5 +1,5 @@
 # Description: This file contains the Lab class which is a subclass of BaseEntity.
-from .base_entity import BaseEntity
+from skills_scraper.model.base_entity import BaseEntity
 
 # Lab entity based on BaseEntity
 class Lab(BaseEntity):

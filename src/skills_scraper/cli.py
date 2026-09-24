@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 import sys
-import os
 import argparse
-from config.settings import WEBDRIVER_PROFILE_FOLDER_NAME, BASE_URL_PARTNERS
+from skills_scraper.config.settings import WEBDRIVER_PROFILE_FOLDER_NAME, BASE_URL_PARTNERS
 
-# Ensure app modules can be imported
-# Add 'app' directory to sys.path so we can import 'models' directly
-sys.path.append(os.path.join(os.getcwd(), 'app'))
-
-from models.course import Course
-from models.path import Path
-from models.paths import Paths
-from models.courses import Courses
-from models.labs import Labs
-from services.launch_browser import launch_browser
+from skills_scraper.model.course import Course
+from skills_scraper.model.path import Path
+from skills_scraper.model.paths import Paths
+from skills_scraper.model.courses import Courses
+from skills_scraper.model.labs import Labs
+from skills_scraper.services.launch_browser import launch_browser
 
 def cmd_list(args):
     """Handle list command"""
@@ -38,7 +33,7 @@ def cmd_list(args):
         
         # Ensure URL is up to date (specifically for Paths)
         if label == "paths":
-            from config.settings import BASE_URL_PATHS
+            from skills_scraper.config.settings import BASE_URL_PATHS
             collection.url = BASE_URL_PATHS
             
         # Fetch list (Supports Path and Courses as they have fetch implemented)
@@ -173,7 +168,7 @@ def cmd_fetch(args):
 
 def cmd_search(args):
     """Handle search command"""
-    from services.database import Database
+    from skills_scraper.services.database import Database
     
     query = args.query
     # Determine type from flags

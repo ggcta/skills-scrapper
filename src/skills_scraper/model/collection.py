@@ -3,8 +3,8 @@ import json
 
 from bs4 import BeautifulSoup
 import requests
-from config.settings import BASE_URL, BASE_URL_PATHS, DATA_FOLDER_NAME, OUTPUT_FOLDER_NAME
-from models.serialize import Serialize
+from skills_scraper.config.settings import BASE_URL, BASE_URL_PATHS, DATA_FOLDER_NAME, OUTPUT_FOLDER_NAME
+from skills_scraper.model.serialize import Serialize
 from pathlib import Path as PathlibPath
 
 
@@ -67,7 +67,7 @@ class Collection(Serialize):
         """
         Load the collection from the Database (TinyDB).
         """
-        from services.database import Database
+        from skills_scraper.services.database import Database
         
         db = Database()
         # Use plural table name
@@ -98,7 +98,7 @@ class Collection(Serialize):
 
         # Sync items to TinyDB
         try:
-            from services.database import Database
+            from skills_scraper.services.database import Database
             db = Database()
             
             # Determine table name (Plural: Paths, Courses, Labs)

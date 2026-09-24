@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.edge.options import Options as EdgeOptions
 from selenium.webdriver.edge.service import Service as EdgeService
 from typing import Optional
-from config.settings import WEBDRIVER_PROFILE_FOLDER_NAME
+from skills_scraper.config.settings import WEBDRIVER_PROFILE_FOLDER_NAME
 
 
 # Launch a browser with the specified profile and headless mode

@@ -1,34 +1,34 @@
-from models.collection import Collection
-from config.settings import BASE_URL_PATHS, API_URL_PATHS
-import requests
-import json
+from skills_scraper.model.collection import Collection
+from skills_scraper.config.settings import BASE_URL_LAB
 
-class Paths(Collection):
+
+class Labs(Collection):
     """
-    Class representing a collection of paths.
+    Class representing a collection of labs.
     """
 
     def __init__(self,
                  name: str = None,
-                 url: str = BASE_URL_PATHS,
+                 url: str = BASE_URL_LAB,
                  collection: dict = None):
         super().__init__(name, url, collection)
 
-    def fetch_paths(self, base_url: str = BASE_URL_PATHS, force: bool = False) -> bool:
+    def fetch_labs(self, force: bool = False) -> bool:
         """
-        Gather all paths from the CloudSkillsBoost Paths page using the API.\n
+        Gather all labs from the CloudSkillsBoost Labs page using the API.
         Returns a Boolean to check status.
-
-        :param base_url: CloudSkillsBoost Paths page URL (unused in API method, kept for signature).
-        :param force: If True, fetch even if collection is not empty.
         """
         if not force and self.collection:
-            print("(Collection.fetch_paths) Collection not empty. Skipping fetch.")
+            print("(Labs.fetch_labs) Collection not empty. Skipping fetch.")
             return True
 
-        print(f"Fetching paths from API: {API_URL_PATHS}")
+        from skills_scraper.config.settings import API_URL_LABS
+        import requests
+        import json
+
+        print(f"Fetching labs from API: {API_URL_LABS}")
         
-        all_paths = {}
+        all_labs = {}
         page = 1
         has_more = True
         
@@ -39,12 +39,10 @@ class Paths(Collection):
 
         try:
             while has_more:
-                url = f"{API_URL_PATHS}&page={page}"
+                url = f"{API_URL_LABS}&page={page}"
                 print(f"Fetching page {page}...", end='\r')
                 
                 response = requests.get(url, headers=headers, timeout=10)
-                # The API might allow 404 or just return empty list/error for out of range?
-                # Based on debug, it returns list.
                 
                 if response.status_code != 200:
                     print(f"\nFailed to fetch page {page}. Status: {response.status_code}")
@@ -72,34 +70,31 @@ class Paths(Collection):
                     title = item.get("title")
                     path_url = item.get("path")
                     if title and path_url:
-                        # Extract ID from path (e.g. /paths/16?...)
-                        # Split by '?' first to remove query params, then '/'
+                        # Extract ID from path (e.g. /catalog_lab/123?...)
                         clean_path = path_url.split('?')[0]
-                        path_id = clean_path.split('/')[-1]
+                        lab_id = clean_path.split('/')[-1]
                         
-                        if path_id:
-                            all_paths[path_id] = title.strip()
+                        if lab_id:
+                            all_labs[lab_id] = title.strip()
                 
                 page += 1
-                # Safety break to avoid infinite loops if API changes behavior
-                if page > 50: 
-                    print("\nReached safety limit of 50 pages.")
+                if page > 100: 
+                    print("\nReached safety limit of 100 pages.")
                     break
 
-            print(f"\nTotal paths found: {len(all_paths)}")
+            print(f"\nTotal labs found: {len(all_labs)}")
 
-            # Check if the collection is not empty
-            if all_paths:
-                self.collection = all_paths
+            if all_labs:
+                self.collection = all_labs
                 self.save_json()
                 return True
             else:
-                print("(Collection.fetch_paths) No paths found.")
+                print("(Labs.fetch_labs) No labs found.")
                 return False
 
         except requests.RequestException as req_err:
-            print(f"(Collection.get_paths) Network error: {req_err}")
+            print(f"(Labs.fetch_labs) Network error: {req_err}")
             return False
         except Exception as error:
-            print(f"(Collection.get_paths) Error occurred: {error}")
+            print(f"(Labs.fetch_labs) Error occurred: {error}")
             return False

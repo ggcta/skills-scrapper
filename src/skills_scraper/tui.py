@@ -1,11 +1,11 @@
 import sys
-from config.settings import BASE_URL_PARTNERS, OUTPUT_FOLDER_NAME, DATA_FOLDER_NAME, WEBDRIVER_PROFILE_FOLDER_NAME
-from models.path import Path
-from models.paths import Paths
-from models.labs import Labs
-from models.course import Course
-from models.courses import Courses
-from services.launch_browser import launch_browser
+from skills_scraper.config.settings import BASE_URL_PARTNERS, OUTPUT_FOLDER_NAME, DATA_FOLDER_NAME, WEBDRIVER_PROFILE_FOLDER_NAME
+from skills_scraper.model.path import Path
+from skills_scraper.model.paths import Paths
+from skills_scraper.model.labs import Labs
+from skills_scraper.model.course import Course
+from skills_scraper.model.courses import Courses
+from skills_scraper.services.launch_browser import launch_browser
 
 
 # Main class for the CloudSkillsBoost Automation Script
@@ -351,7 +351,8 @@ class CloudSkillsBoost:
                 continue
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the interactive (TUI) mode."""
 
     # Create the OUTPUT FOLDERS if they do not exist
     if not OUTPUT_FOLDER_NAME.exists():
@@ -377,6 +378,10 @@ if __name__ == "__main__":
     cloud_skills_boost.interactive_mode()
 
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
 
 # TODO: Check if published_date is newer then update the path data
 # TODO: Separated webdriver in tasks_coordinator()
