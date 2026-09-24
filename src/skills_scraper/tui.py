@@ -5,13 +5,29 @@ from skills_scraper.model.paths import Paths
 from skills_scraper.model.labs import Labs
 from skills_scraper.model.course import Course
 from skills_scraper.model.courses import Courses
-from skills_scraper.services.launch_browser import launch_browser
+from skills_scraper.services.browser import launch_browser
 
 
 # Main class for the CloudSkillsBoost Automation Script
 class CloudSkillsBoost:
     def __init__(self):
         self.paths_collection, self.courses_collection, self.labs_collection = self.load_data()
+        self._driver = None
+
+    @property
+    def driver(self):
+        """The signed-in browser, launched on first use and reused after that."""
+        if self._driver is None:
+            print("\n\033[35mLaunching the browser...\033[0m\n")
+            self._driver = launch_browser(profile_folder=WEBDRIVER_PROFILE_FOLDER_NAME,
+                                          headless=False)
+        return self._driver
+
+    def close(self):
+        """Quit the browser if one was launched."""
+        if self._driver is not None:
+            self._driver.quit()
+            self._driver = None
 
     @staticmethod
     def load_data():
@@ -73,7 +89,7 @@ class CloudSkillsBoost:
             if extract_transcript_task:
                 heading = f"{a_course_id} - {course_name.upper()}"
                 print(f"\n\033[45m[{heading:^85}]\033[0m")
-                course = Course(id=a_course_id)
+                course = Course(id=a_course_id, driver=self.driver)
                 course.extract_transcript()
                 # Save the course name to the collection
                 # TODO: Save only those missing courses.
@@ -83,7 +99,7 @@ class CloudSkillsBoost:
         #  =======================================================================
         # A path is submitted, list all the courses in the path and let user select
         if a_path_id:
-            path_data = Path(id=a_path_id)
+            path_data = Path(id=a_path_id, driver=self.driver)
             path_data.load_json()
 
             # If the path has no data yet
@@ -121,7 +137,7 @@ class CloudSkillsBoost:
                         heading = f"{current_course_id} - {current_course_name.upper()}"
                         print(f"\n\033[45m[{heading:^85}]\033[0m")
 
-                        course_instance = Course(id=current_course_id, name=current_course_name)
+                        course_instance = Course(id=current_course_id, name=current_course_name, driver=self.driver)
                         course_instance.extract_transcript()
 
                         # Save the course name to the collection
@@ -135,7 +151,7 @@ class CloudSkillsBoost:
                     heading = f"{a_course_id} - {path_data.courses[a_course_id]['name'].upper()}"
                     print(f"\n\033[45m[{heading:^85}]\033[0m")
 
-                    course_instance = Course(id=a_course_id, name=path_data.courses[a_course_id]['name'])
+                    course_instance = Course(id=a_course_id, name=path_data.courses[a_course_id]['name'], driver=self.driver)
                     course_instance.extract_transcript()
                     # Save the course name to the collection
                     self.courses_collection.collection[course_instance.id] = course_instance.name
@@ -301,8 +317,11 @@ class CloudSkillsBoost:
                     print("Generating prompt completed. Going back...\n")
 
             elif course_or_path.lower() == '6' or course_or_path.lower() == 'h':
-                # Fetch all courses' data
-                self.courses_collection.fetch_data()
+                # Fetch every course in the collection, one browser for all of them
+                for course_id, course_name in self.courses_collection.collection.items():
+                    heading = f"{course_id} - {course_name.upper()}"
+                    print(f"\n\033[45m[{heading:<85}]\033[0m")
+                    Course(id=course_id, driver=self.driver).extract_transcript()
                 self.courses_collection.save_json()
 
             elif course_or_path.lower() == '9' or course_or_path.lower() == 'd':
@@ -319,7 +338,7 @@ class CloudSkillsBoost:
                 # Get all courses from all the paths
                 for path_id, path_name in self.paths_collection.collection.items():
                     print(f"+|-• \033[35m[{path_id:>5} - {path_name:<72}]\033[0m")
-                    path_data = Path(id=path_id, name=path_name)
+                    path_data = Path(id=path_id, name=path_name, driver=self.driver)
                     path_data.fetch_data()
                     # Save the path data to the file: JSON
                     path_data.save_json()
@@ -336,12 +355,9 @@ class CloudSkillsBoost:
 
             elif course_or_path.lower() == '8' or course_or_path.lower() == 'w':
                 # Launch the browser
-                print("\n\033[35mDEBUG: LAUNCHING THE BROWSER...\033[0m\n")
-                webbrowser = launch_browser(profile_folder=WEBDRIVER_PROFILE_FOLDER_NAME,
-                                            headless=False)
-                # Open the URL in the default web browser
-                webbrowser.get(BASE_URL_PARTNERS)
-                print("\n\033[35mDEBUG: BROWSER LAUNCHED.\033[0m\n")
+                # Open the sign-in page in the shared browser so the profile keeps the session
+                self.driver.get(BASE_URL_PARTNERS)
+                print("\n\033[35mDEBUG: BROWSER LAUNCHED. Sign in there, then come back.\033[0m\n")
 
             else:
                 print("\033[31m"
@@ -375,7 +391,10 @@ def main():
 
     # Create an instance of CloudSkillsBoost and start interactive mode
     cloud_skills_boost = CloudSkillsBoost()
-    cloud_skills_boost.interactive_mode()
+    try:
+        cloud_skills_boost.interactive_mode()
+    finally:
+        cloud_skills_boost.close()
 
     sys.exit(0)
 

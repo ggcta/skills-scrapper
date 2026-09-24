@@ -1,6 +1,5 @@
 import json
-from bs4 import BeautifulSoup
-import requests
+from skills_scraper.services.browser import get_page
 from skills_scraper.utils.utils import util_replace_special_chars
 from skills_scraper.config import *
 from skills_scraper.model.base_entity import BaseEntity
@@ -19,12 +18,14 @@ class Path(BaseEntity):
                  name: str = None,
                  description: str = None,
                  datePublished: str = None,
-                 courses: dict = None):
+                 courses: dict = None,
+                 driver=None):
         super().__init__(id,
                          name,
                          description)
         self.datePublished = datePublished
         self.courses = courses or {}
+        self.driver = driver
 
     # Fetch the Path data from the website
     def fetch_data(self):
@@ -33,11 +34,10 @@ class Path(BaseEntity):
         """
 
         try:
-            # Navigate to the path URL
-            response = requests.get(self.url, timeout=20)
-            response.raise_for_status()
-
-            path_html = BeautifulSoup(response.text, "html.parser")
+            # Navigate to the path URL in the signed-in browser
+            path_html = get_page(self.driver, self.url, f"path {self.id}")
+            if path_html is None:
+                return {}
 
             # Locate the <script> tag containing the JSON data
             script_element = path_html.select_one(LD_JSON)

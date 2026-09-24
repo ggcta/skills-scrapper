@@ -8,7 +8,7 @@ from skills_scraper.model.path import Path
 from skills_scraper.model.paths import Paths
 from skills_scraper.model.courses import Courses
 from skills_scraper.model.labs import Labs
-from skills_scraper.services.launch_browser import launch_browser
+from skills_scraper.services.browser import launch_browser
 
 def cmd_list(args):
     """Handle list command"""
@@ -91,13 +91,27 @@ def cmd_fetch(args):
         print("Please specify items to fetch using -p <id>, -c <id>, or -l <id>.")
         return
 
+    # One signed-in browser for the whole run; every page needs it nowadays.
+    print("\n\033[35mLaunching the browser...\033[0m")
+    driver = launch_browser(headless=False, browser="chrome", profile_folder=WEBDRIVER_PROFILE_FOLDER_NAME)
+    try:
+        fetch_items(driver, fetch_paths_ids, fetch_courses_ids, fetch_labs_ids,
+                    force=force, no_md=no_md, toc_only=toc_only, no_transcript=no_transcript)
+    finally:
+        print("Closing browser...")
+        driver.quit()
+
+def fetch_items(driver, fetch_paths_ids, fetch_courses_ids, fetch_labs_ids,
+                force=False, no_md=False, toc_only=False, no_transcript=False):
+    """Fetch the given paths, courses and labs through one browser session."""
+
     # --- Paths ---
     if fetch_paths_ids:
         print(f"\n--- Processing Paths: {fetch_paths_ids} ---")
         for pid in fetch_paths_ids:
             try:
                 print(f"Processing Path {pid}...")
-                p = Path(id=pid)
+                p = Path(id=pid, driver=driver)
                 # Load existing to see if we need to fetch? 
                 # Fetch command implies scraping/updating.
                 
@@ -134,25 +148,15 @@ def cmd_fetch(args):
     # --- Courses ---
     if fetch_courses_ids:
         print(f"\n--- Processing Courses: {fetch_courses_ids} ---")
-        driver = None
-        try:
-             # Launch browser for authenticated access
-             print("\n\033[35mLaunching browser for course extraction...\033[0m")
-             driver = launch_browser(headless=False, browser="chrome", profile_folder=WEBDRIVER_PROFILE_FOLDER_NAME)
-             
-             for cid in fetch_courses_ids:
-                try:
-                    print(f"Processing Course {cid}...")
-                    c = Course(id=cid, driver=driver)
-                    # extract_transcript fetches page, extracts metadata, outline, modules, saves json/md.
-                    c.extract_transcript(force=force, no_md=no_md, toc_only=toc_only, no_transcript=no_transcript)
-                    print(f"Course {cid} updated.")
-                except Exception as e:
-                    print(f"Failed to fetch course {cid}: {e}")
-        finally:
-            if driver:
-                print("Closing browser...")
-                driver.quit()
+        for cid in fetch_courses_ids:
+            try:
+                print(f"Processing Course {cid}...")
+                c = Course(id=cid, driver=driver)
+                # extract_transcript fetches page, extracts metadata, outline, modules, saves json/md.
+                c.extract_transcript(force=force, no_md=no_md, toc_only=toc_only, no_transcript=no_transcript)
+                print(f"Course {cid} updated.")
+            except Exception as e:
+                print(f"Failed to fetch course {cid}: {e}")
 
     # --- Labs ---
     if fetch_labs_ids:

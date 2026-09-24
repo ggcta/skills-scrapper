@@ -10,6 +10,7 @@ import html
 import requests
 from bs4 import BeautifulSoup
 from skills_scraper.config import BASE_URL, QL_IFRAME
+from skills_scraper.services.browser import get_page, open_page
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -107,23 +108,8 @@ class Course(BaseEntity):
         """
 
         try:
-            if self.driver:
-                print(f"(fetch_course_page) Fetching with driver: {self.url}")
-                self.driver.get(self.url)
-
-                # Check for sign-in redirect
-                if "sign_in" in self.driver.current_url:
-                     print("\n\033[93m[!] Authentication required. Please sign in to the opened browser window.\033[0m")
-                     input("Press Enter after you have signed in and the page is loaded to continue...")
-                     # Reload to ensure we have the page content
-                     if "sign_in" in self.driver.current_url:
-                         self.driver.get(self.url)
-
-                return BeautifulSoup(self.driver.page_source, "html.parser")
-            else:
-                response = requests.get(self.url, timeout=20)
-                response.raise_for_status()
-                return BeautifulSoup(response.text, "html.parser")
+            print(f"(fetch_course_page) Fetching: {self.url}")
+            return get_page(self.driver, self.url, f"course {self.id}")
         except Exception as error:
             print(f"(extract_transcript) Error: Unable to load the course page. {error}")
             return None
@@ -229,20 +215,9 @@ class Course(BaseEntity):
 
         print(f"(process_video) •-> Vid: {activity['id']:>6} - {activity['title']}")
         try:
-            if self.driver:
-                self.driver.get(url)
-
-                if "sign_in" in self.driver.current_url:
-                     print(f"\n\033[93m[!] Authentication required for video {activity['id']}.\033[0m")
-                     print("Please sign in to the browser window if you haven't.")
-                     input("Press Enter after you have signed in and the page is loaded...")
-                     self.driver.get(url) # Retry loading the video page
-
-                video_html = BeautifulSoup(self.driver.page_source, "html.parser")
-            else:
-                response = requests.get(url)
-                response.raise_for_status()
-                video_html = BeautifulSoup(response.text, "html.parser")
+            video_html = get_page(self.driver, url, f"video {activity['id']}")
+            if video_html is None:
+                return
 
             video_element = video_html.select_one(QL_YOUTUBE_VIDEO)
             video_id = video_element.get("videoId") or video_element.get("videoid")
@@ -276,21 +251,9 @@ class Course(BaseEntity):
         # print(f"(process_lab) Using template URL: {template_url}")
 
         try:
-            if self.driver:
-                self.driver.get(template_url)
-
-                # Check for sign-in redirect
-                if "sign_in" in self.driver.current_url:
-                     print(f"\n\033[93m[!] Authentication required for lab {activity['id']}.\033[0m")
-                     print("Please sign in to the browser window if you haven't.")
-                     input("Press Enter after you have signed in and the page is loaded...")
-                     self.driver.get(template_url) # Retry loading the lab page
-
-                lab_page_html = BeautifulSoup(self.driver.page_source, "html.parser")
-            else:
-                response = requests.get(template_url)
-                response.raise_for_status()
-                lab_page_html = BeautifulSoup(response.text, "html.parser")
+            lab_page_html = get_page(self.driver, template_url, f"lab {activity['id']}")
+            if lab_page_html is None:
+                return
 
             lab_review_lab_id_element = lab_page_html.select_one(LAB_REVIEW_LAB_ID)
             lab_content_outline_element = lab_page_html.select_one(LAB_CONTENT_OUTLINE)
@@ -352,8 +315,7 @@ class Course(BaseEntity):
                 return self.external_course_data[base_url]
 
             print(f"(fetch_external) Fetching external course data: {base_url}...")
-            if self.driver:
-                self.driver.get(url)
+            if open_page(self.driver, url, "external course content"):
                 time.sleep(3) # Wait for scripts to load
 
                 # Execute __fetchCourse
@@ -512,37 +474,25 @@ class Course(BaseEntity):
 
         print(f"(process_quiz) •-> Qui: {activity['id']:>6} - {activity['title']}")
         try:
-            if self.driver:
-                self.driver.get(url)
-                if "sign_in" in self.driver.current_url:
-                     # Allow silent fail or prompt? For quiz, maybe prompt if important.
-                     # But quizzes are usually less critical than labs/videos?
-                     # Let's align with others: prompt.
-                     print(f"\n\033[93m[!] Authentication required for quiz {activity['id']}.\033[0m")
-                     print("Please sign in to the browser window if you haven't.")
-                     input("Press Enter after you have signed in and the page is loaded...")
-                     self.driver.get(url)
+            if not open_page(self.driver, url, f"quiz {activity['id']}"):
+                return
 
-                # Check for Start Quiz button
-                try:
-                    start_button = self.driver.find_element(By.XPATH, XPATH_START_BUTTON)
-                    if start_button:
-                        print(f"(process_quiz) Start Quiz button found. Clicking...")
-                        start_button.click()
-                        # Wait for quiz content to load
-                        WebDriverWait(self.driver, 10).until(
-                            EC.presence_of_element_located((By.XPATH, XPATH_QUIZ))
-                        )
-                except NoSuchElementException:
-                    pass # Button not found, proceed as usual
-                except Exception as e:
-                    print(f"(process_quiz) Warning: Error clicking Start Quiz button: {e}")
+            # Check for Start Quiz button
+            try:
+                start_button = self.driver.find_element(By.XPATH, XPATH_START_BUTTON)
+                if start_button:
+                    print(f"(process_quiz) Start Quiz button found. Clicking...")
+                    start_button.click()
+                    # Wait for quiz content to load
+                    WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_element_located((By.XPATH, XPATH_QUIZ))
+                    )
+            except NoSuchElementException:
+                pass # Button not found, proceed as usual
+            except Exception as e:
+                print(f"(process_quiz) Warning: Error clicking Start Quiz button: {e}")
 
-                quiz_page_html = BeautifulSoup(self.driver.page_source, "html.parser")
-            else:
-                response = requests.get(url)
-                response.raise_for_status()
-                quiz_page_html = BeautifulSoup(response.text, "html.parser")
+            quiz_page_html = BeautifulSoup(self.driver.page_source, "html.parser")
 
             quiz_element = quiz_page_html.select_one(QL_QUIZ)
             if quiz_element:
@@ -561,21 +511,9 @@ class Course(BaseEntity):
 
         print(f"(process_link) •-> Lnk: {activity['id']:>6} - {activity['title']}")
         try:
-            if self.driver:
-                self.driver.get(url)
-                # Links usually redirect to external or internal resources.
-                # If internal, might need auth.
-                if "sign_in" in self.driver.current_url:
-                     print(f"\n\033[93m[!] Authentication required for link {activity['id']}.\033[0m")
-                     print("Please sign in to the browser window if you haven't.")
-                     input("Press Enter after you have signed in and the page is loaded...")
-                     self.driver.get(url)
-
-                link_page_html = BeautifulSoup(self.driver.page_source, "html.parser")
-            else:
-                response = requests.get(url)
-                response.raise_for_status()
-                link_page_html = BeautifulSoup(response.text, "html.parser")
+            link_page_html = get_page(self.driver, url, f"link {activity['id']}")
+            if link_page_html is None:
+                return
 
             link_url_a_tag = link_page_html.select_one(LINK_URL_A_TAG)
             if link_url_a_tag:
@@ -621,19 +559,9 @@ class Course(BaseEntity):
             doc_dir = getattr(self, '_output_path', PathlibPath("csbmdvault")) / "courses" / "documents" / self.id
             doc_dir.mkdir(parents=True, exist_ok=True)
 
-            if self.driver:
-                self.driver.get(url)
-                if "sign_in" in self.driver.current_url:
-                    print(f"\n\033[93m[!] Authentication required for document {activity['id']}.\033[0m")
-                    print("Please sign in to the browser window if you haven't.")
-                    input("Press Enter after you have signed in and the page is loaded...")
-                    self.driver.get(url)
-
-                doc_page_html = BeautifulSoup(self.driver.page_source, "html.parser")
-            else:
-                response = requests.get(url)
-                response.raise_for_status()
-                doc_page_html = BeautifulSoup(response.text, "html.parser")
+            doc_page_html = get_page(self.driver, url, f"document {activity['id']}")
+            if doc_page_html is None:
+                return
 
             # Find download link
             # Selector: a[aria-label="Download document"] or a#link
