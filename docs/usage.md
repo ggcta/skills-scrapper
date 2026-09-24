@@ -6,7 +6,7 @@
 ### Starting Up
 
 ```bash
-python scraper.py
+uv run skills-scraper-tui
 ```
 
 ### Specify The Task You Want To Go With
