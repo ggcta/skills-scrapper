@@ -4,7 +4,7 @@ from skills_scraper.config import BASE_URL_COURSES, BASE_URL_LAB, BASE_URL_PATHS
 from pathlib import Path as PathlibPath
 from skills_scraper.utils.utils import util_replace_quote_marks, util_replace_special_chars, util_strip_html_tags
 from skills_scraper.model.serialize import Serialize
-from skills_scraper.services.store import Index, read_json, write_json
+from skills_scraper.services.store import Index, read_json, write_json, write_text
 
 
 def yaml_scalar(value) -> str:
@@ -221,15 +221,7 @@ class BaseEntity(Serialize):
         passes kwargs to generate_markdown
         """
 
-        mdtext = self.generate_markdown(**kwargs)
-
-        # Create the folder if it doesn't exist
-        if not self._md_path.parent.exists():
-            self._md_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Write the markdown content to a file, overwrite if exists
-        with open(self._md_path, "w", encoding="utf-8", newline='\n') as mdfile:
-            mdfile.write(mdtext)
+        write_text(self._md_path, self.generate_markdown(**kwargs))
 
     def clean_text(self, text: str) -> str:
         """

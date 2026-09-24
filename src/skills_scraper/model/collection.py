@@ -5,7 +5,7 @@ from skills_scraper.config import BASE_URL, BASE_URL_PATHS, DATA_FOLDER_NAME, OU
 from skills_scraper.model.serialize import Serialize
 from skills_scraper.model.base_entity import yaml_scalar
 from skills_scraper.services.browser import get_page
-from skills_scraper.services.store import Index
+from skills_scraper.services.store import Index, write_text
 from pathlib import Path as PathlibPath
 
 
@@ -230,9 +230,7 @@ class Collection(Serialize):
             print(f"(Collection.write_md) Warning: Mixed value types in collection or empty collection. Skipping sorting for {self.name}.")
 
         # Create the Markdown file
-        markdown_list = self.md_helper()
-        with open(self._md_path, 'w', encoding='utf-8', newline='\n') as md_file:
-            md_file.write(markdown_list)
+        write_text(self._md_path, self.md_helper())
 
     def md_helper(self):
         markdown = []

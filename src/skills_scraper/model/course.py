@@ -9,7 +9,7 @@ import json
 import html
 import requests
 from bs4 import BeautifulSoup
-from skills_scraper.config import BASE_URL, COURSE_CONTENTS_MENU, QL_IFRAME
+from skills_scraper.config import BASE_URL, COURSE_CONTENTS_MENU, OUTPUT_FOLDER_NAME, QL_IFRAME
 from skills_scraper.services.browser import get_page, open_page
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -557,9 +557,9 @@ class Course(BaseEntity):
         print(f"(process_document) •-> Doc: {activity['id']:>6} - {activity['title']}")
 
         try:
-            # Create documents directory if it doesn't exist
-            # csbmdvault/courses/documents/<course_id>/
-            doc_dir = getattr(self, '_output_path', PathlibPath("csbmdvault")) / "courses" / "documents" / self.id
+            # Downloaded materials live in the vault, grouped by course:
+            # <vault>/materials/courses/<course_id>/
+            doc_dir = PathlibPath(OUTPUT_FOLDER_NAME) / "materials" / "courses" / self.id
             doc_dir.mkdir(parents=True, exist_ok=True)
 
             doc_page_html = get_page(self.driver, url, f"document {activity['id']}")
@@ -615,7 +615,7 @@ class Course(BaseEntity):
 
                 # Prepare save path
                 save_path = doc_dir / filename
-                activity['local_document_path'] = f"documents/{self.id}/{filename}"
+                activity['local_document_path'] = f"materials/courses/{self.id}/{filename}"
 
                 if save_path.exists():
                      print(f"(process_document) •-• [+] Existed: {filename}")
@@ -639,7 +639,7 @@ class Course(BaseEntity):
                              if match:
                                  filename = match.group(1)
                                  save_path = doc_dir / filename
-                                 activity['local_document_path'] = f"documents/{self.id}/{filename}"
+                                 activity['local_document_path'] = f"materials/courses/{self.id}/{filename}"
 
                     with open(save_path, 'wb') as f:
                         for chunk in file_response.iter_content(chunk_size=8192):
@@ -796,8 +796,9 @@ class Course(BaseEntity):
                             # activity['local_document_path'] should have been set in process_document
                             local_path = activity.get('local_document_path')
                             if local_path:
+                                # vault-relative path, the course file sits one folder down
                                 filename = PathlibPath(local_path).name
-                                markdown.append(f"- [{filename}]({local_path})")
+                                markdown.append(f"- [{filename}](../{local_path})")
 
         return "\n\n".join(markdown) + "\n"
 
