@@ -9,7 +9,7 @@ import json
 import html
 import requests
 from bs4 import BeautifulSoup
-from skills_scraper.config import BASE_URL, QL_IFRAME
+from skills_scraper.config import BASE_URL, COURSE_CONTENTS_MENU, QL_IFRAME
 from skills_scraper.services.browser import get_page, open_page
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -20,7 +20,6 @@ from skills_scraper.utils.utils import util_replace_quote_marks, util_replace_sp
 # Constants for the extraction of the course data
 COURSE_LD_JSON = "script[type='application/ld+json']"
 COURSE_META_DESCRIPTION = "meta[name='description']"
-COURSE_CONTENTS_MENU = "ql-contents-menu"
 QL_YOUTUBE_VIDEO = "ql-youtube-video"
 LAB_REVIEW_LAB_ID = "#lab_review_lab_id"
 LAB_CONTENT_OUTLINE = "ul.lab-content__outline"

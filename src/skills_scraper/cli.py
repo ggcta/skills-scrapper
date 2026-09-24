@@ -140,9 +140,9 @@ def fetch_items(driver, fetch_paths_ids, fetch_courses_ids, fetch_labs_ids,
                 courses_collection.load_json()
                 
                 for course in p.courses.values():
-                    c_id = course['id']
-                    c_name = course['name']
-                    courses_collection.collection[c_id] = c_name
+                    if course.get('type', '').lower() == 'lab':
+                        continue
+                    courses_collection.collection[course['id']] = course['name']
                 
                 courses_collection.save_json()
                 

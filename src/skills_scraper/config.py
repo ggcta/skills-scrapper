@@ -91,6 +91,7 @@ BASE_URL_COURSES: str = f"{BASE_URL}/course_templates"
 BASE_URL_PARTNERS: str = "https://partner.skills.google/"
 
 # Constants for the extraction of the course data
+COURSE_CONTENTS_MENU = "ql-contents-menu"
 LAB_CONTENT_OUTLINE = "ul.lab-content__outline"
 LAB_REVIEW_LAB_ID = "#lab_review_lab_id"
 LAB_TITLE = "ql-title-medium"

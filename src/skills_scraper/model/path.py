@@ -1,11 +1,9 @@
 import json
+import re
 from skills_scraper.services.browser import get_page
 from skills_scraper.utils.utils import util_replace_special_chars
-from skills_scraper.config import *
+from skills_scraper.config import BASE_URL, BASE_URL_COURSES, COURSE_CONTENTS_MENU, LD_JSON
 from skills_scraper.model.base_entity import BaseEntity
-
-# Constants for the extraction of the course data
-LD_JSON = "script[type='application/ld+json']"
 
 # Path entity
 class Path(BaseEntity):
@@ -50,28 +48,96 @@ class Path(BaseEntity):
             print(f"fetch_data(): Unable to find LD+JSON element - {error}")
             return {}
 
-        # Process Path and Courses data
-        # Extract course details, collect id and name only
-        courses_list: dict[str, dict] = {}
-
-        # A Path JSON element should and must have 'hasPart' key
-        for course in path_data['hasPart']:
-            course_id = course['url'].split('/')[-1]
-            courses_list[course_id] = {
-                "id": course_id,
-                "type": course["@type"],
-                "name": course["name"].strip(),
-                "url": course["url"].strip()
-            }
-
         # Core Path details
         self.name = path_data['name'].strip()
         self.description = self.clean_text(path_data['description'])
-        self.datePublished = path_data['datePublished'].strip()
+        self.datePublished = path_data.get('datePublished', '').strip()
 
-        # Courses list of the Path
-        # TODO: Use hasPart to respect the original JSON schema.
-        self.courses = courses_list
+        # Courses (and standalone labs) of the Path
+        self.courses = self.consolidate_activities(path_data, path_html)
+
+    def consolidate_activities(self, path_data: dict, path_html) -> dict:
+        """
+        Build the path's activity list from two sources.
+
+        The ld+json ``hasPart`` labels every entry ``Course`` and points a
+        standalone lab at an unrelated course_templates id, so its URLs cannot
+        be trusted. The page's ``ql-contents-menu`` is authoritative for order
+        and kind: a top-level ``/focuses/<id>`` href is a lab, anything else is
+        a course. The ld+json only supplies the course id when the menu href is
+        a session deep-link, and a cleaner name.
+        """
+        ld_by_name: dict[str, dict] = {}
+        for part in path_data.get('hasPart', []):
+            name = part["name"].strip()
+            ld_by_name[name.lower()] = {"id": part['url'].split('/')[-1], "name": name}
+
+        menu = self.menu_activities(path_html)
+        activities: dict[str, dict] = {}
+
+        if not menu:
+            # No contents menu (unusual): labs cannot be told apart, courses still resolve.
+            for part in path_data.get('hasPart', []):
+                course_id = part['url'].split('/')[-1]
+                activities[course_id] = {
+                    "id": course_id,
+                    "type": "Course",
+                    "name": part["name"].strip(),
+                    "url": part["url"].strip(),
+                }
+            return activities
+
+        for activity in menu:
+            title = (activity.get("title") or "").strip()
+            href = activity.get("href") or ""
+            ld_hit = ld_by_name.get(title.lower())
+            name = ld_hit["name"] if ld_hit else title
+
+            focus_match = re.match(r'^/focuses/(\d+)', href)
+            if focus_match:
+                lab_id = focus_match.group(1)
+                activities[lab_id] = {
+                    "id": lab_id,
+                    "type": "lab",
+                    "name": name,
+                    "url": f"{BASE_URL}{href}",
+                }
+                continue
+
+            template_match = re.search(r'/course_templates/(\d+)', href)
+            if template_match:
+                course_id = template_match.group(1)
+            elif ld_hit:
+                course_id = ld_hit["id"]
+            else:
+                print(f"(consolidate_activities) Skipping unresolvable activity: {title}")
+                continue
+            activities[course_id] = {
+                "id": course_id,
+                "type": "Course",
+                "name": name,
+                "url": f"{BASE_URL_COURSES}/{course_id}",
+            }
+        return activities
+
+    @staticmethod
+    def menu_activities(path_html) -> list:
+        """
+        The path's ql-contents-menu activities, in page order.
+        """
+        if path_html is None:
+            return []
+        menu = path_html.select_one(COURSE_CONTENTS_MENU)
+        if not menu or not menu.get("modules"):
+            return []
+        try:
+            modules = json.loads(menu["modules"])
+        except (ValueError, TypeError):
+            return []
+        return [activity
+                for module in modules
+                for step in module.get("steps", [])
+                for activity in step.get("activities", [])]
 
     # Print out the courses list of a certain Path
     def courses_list(self):
@@ -113,10 +179,10 @@ class Path(BaseEntity):
             # Add each course in the Path
             course_list = []
             for course_id, course in self.courses.items():
+                folder = "labs" if course.get('type', '').lower() == 'lab' else "courses"
                 course_md_name = f"{util_replace_special_chars(course['name'])}.md"
-                course_list.append(f"* [ ] [{course['name']} ({course_id})](../courses/{course_md_name})")
+                course_list.append(f"- [ ] [{course['name']} ({course_id})](../{folder}/{course_md_name})")
             markdown.append("\n".join(course_list))
 
         return "\n\n".join(markdown) + "\n"
 
-# TODO: Make Path() matches the json file structure from the website
