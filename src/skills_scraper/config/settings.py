@@ -28,7 +28,6 @@ WEBDRIVER_PROFILE_FOLDER_NAME: str = PROJECT_ROOT / '.webdriver_profiles'
 WEBDRIVER_OPTIONS_HEADLESS: bool = True
 
 # Constants for the extraction of the course data
-COURSE_OUTLINE = "ql-course-outline"
 LAB_CONTENT_OUTLINE = "ul.lab-content__outline"
 LAB_REVIEW_LAB_ID = "#lab_review_lab_id"
 LAB_TITLE = "ql-title-medium"

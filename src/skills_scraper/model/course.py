@@ -19,7 +19,6 @@ from skills_scraper.utils.utils import util_replace_quote_marks, util_replace_sp
 # Constants for the extraction of the course data
 COURSE_LD_JSON = "script[type='application/ld+json']"
 COURSE_META_DESCRIPTION = "meta[name='description']"
-COURSE_OUTLINE = "ql-course-outline"
 COURSE_CONTENTS_MENU = "ql-contents-menu"
 QL_YOUTUBE_VIDEO = "ql-youtube-video"
 LAB_REVIEW_LAB_ID = "#lab_review_lab_id"
@@ -172,19 +171,12 @@ class Course(BaseEntity):
         """
 
         try:
-            # Try to find the new course contents menu first
             course_contents_element = course_html.select_one(COURSE_CONTENTS_MENU)
             if course_contents_element:
-                 self.modules = json.loads(course_contents_element["modules"])
-                 return True
-
-            # Fallback to the old course outline
-            course_outline_element = course_html.select_one(COURSE_OUTLINE)
-            if course_outline_element:
-                self.modules = json.loads(course_outline_element["modules"])
+                self.modules = json.loads(course_contents_element["modules"])
                 return True
 
-            raise NoSuchElementException("(extract_course_outline) ql-contents-menu or ql-course-outline is not found.")
+            raise NoSuchElementException("(extract_course_outline) ql-contents-menu is not found.")
         except Exception as error:
             print(f"(extract_course_outline) Error: {error}")
             return False

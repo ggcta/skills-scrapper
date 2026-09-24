@@ -1,6 +1,5 @@
 from skills_scraper.model.collection import Collection
 from skills_scraper.config.settings import BASE_URL_COURSES
-from skills_scraper.model.course import Course
 
 
 class Courses(Collection):
@@ -99,17 +98,3 @@ class Courses(Collection):
         except Exception as error:
             print(f"(Courses.fetch_courses) Error occurred: {error}")
             return False
-
-    # TODO: fetch_data() method to refresh all the courses' data.
-    def fetch_data(self):        
-        """
-        Fetch data for all courses in the collection.
-        """
-        for course_id, course_name in self.collection.items():
-            # Print out the course id and name as a heading title
-            heading = f"{course_id} - {course_name.upper()}"
-            print(f"\n\033[45m[{heading:<85}]\033[0m")
-
-            # Start to fetch the course data
-            a_course = Course(id=course_id)
-            a_course.extract_transcript()
