@@ -8,6 +8,7 @@ from skills_scraper.model.path import Path
 from skills_scraper.model.paths import Paths
 from skills_scraper.model.courses import Courses
 from skills_scraper.model.labs import Labs
+from skills_scraper.model.lab import Lab
 from skills_scraper.services.browser import launch_browser
 
 def cmd_list(args):
