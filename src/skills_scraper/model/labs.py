@@ -1,5 +1,5 @@
 from skills_scraper.model.collection import Collection
-from skills_scraper.config.settings import BASE_URL_LAB
+from skills_scraper.config import BASE_URL_LAB
 
 
 class Labs(Collection):
@@ -22,7 +22,7 @@ class Labs(Collection):
             print("(Labs.fetch_labs) Collection not empty. Skipping fetch.")
             return True
 
-        from skills_scraper.config.settings import API_URL_LABS
+        from skills_scraper.config import API_URL_LABS
         import requests
         import json
 

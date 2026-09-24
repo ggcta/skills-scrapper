@@ -3,7 +3,7 @@ import json
 
 from bs4 import BeautifulSoup
 import requests
-from skills_scraper.config.settings import BASE_URL, BASE_URL_PATHS, DATA_FOLDER_NAME, OUTPUT_FOLDER_NAME
+from skills_scraper.config import BASE_URL, BASE_URL_PATHS, DATA_FOLDER_NAME, OUTPUT_FOLDER_NAME
 from skills_scraper.model.serialize import Serialize
 from pathlib import Path as PathlibPath
 

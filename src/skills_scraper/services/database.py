@@ -1,7 +1,7 @@
 import os
 import datetime
 from tinydb import TinyDB, Query
-from skills_scraper.config.settings import DATA_FOLDER_NAME
+from skills_scraper.config import DATA_FOLDER_NAME
 
 class Database:
     _instance = None

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import argparse
-from skills_scraper.config.settings import WEBDRIVER_PROFILE_FOLDER_NAME, BASE_URL_PARTNERS
+from skills_scraper.config import WEBDRIVER_PROFILE_FOLDER_NAME, BASE_URL_PARTNERS
 
 from skills_scraper.model.course import Course
 from skills_scraper.model.path import Path
@@ -33,7 +33,7 @@ def cmd_list(args):
         
         # Ensure URL is up to date (specifically for Paths)
         if label == "paths":
-            from skills_scraper.config.settings import BASE_URL_PATHS
+            from skills_scraper.config import BASE_URL_PATHS
             collection.url = BASE_URL_PATHS
             
         # Fetch list (Supports Path and Courses as they have fetch implemented)

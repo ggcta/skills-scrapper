@@ -1,5 +1,5 @@
 from skills_scraper.model.collection import Collection
-from skills_scraper.config.settings import BASE_URL_COURSES
+from skills_scraper.config import BASE_URL_COURSES
 
 
 class Courses(Collection):
@@ -22,7 +22,7 @@ class Courses(Collection):
             print("(Courses.fetch_courses) Collection not empty. Skipping fetch.")
             return True
 
-        from skills_scraper.config.settings import API_URL_COURSES
+        from skills_scraper.config import API_URL_COURSES
         import requests
         import json
 

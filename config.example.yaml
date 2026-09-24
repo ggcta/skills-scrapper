@@ -1,0 +1,15 @@
+# config.yaml: settings for the Google Skills Scraper. Copy it to `config.yaml`
+# next to where you run the commands (or point CSB_CONFIG at it) and change
+# only the keys you need; anything left out keeps its default.
+#
+# Precedence: environment variable > config.yaml > built-in default.
+# Relative paths resolve against the folder holding this file.
+
+paths:
+  data: data                       # JSON files, one per path/course/lab   (env: CSB_DATA)
+  vault: csbmdvault                # Markdown output, open it in Obsidian  (env: CSB_VAULT)
+  profile: .webdriver_profiles     # Chrome profile that keeps the sign-in (env: CSB_PROFILE_DIR)
+
+browser:
+  name: chrome                     # chrome | edge                         (env: CSB_BROWSER)
+  headless: false                  # true only once the profile is signed in (env: CSB_HEADLESS)

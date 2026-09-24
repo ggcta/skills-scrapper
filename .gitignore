@@ -11,3 +11,4 @@ csbmdvault/.obsidian/graph.json
 !csbmdvault/.obsidian
 .build
 __pycache__/
+/config.yaml

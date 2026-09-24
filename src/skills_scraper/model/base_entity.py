@@ -1,6 +1,6 @@
 import html
 import json
-from skills_scraper.config.settings import BASE_URL_COURSES, BASE_URL_LAB, BASE_URL_PATHS, DATA_FOLDER_NAME, OUTPUT_FOLDER_NAME
+from skills_scraper.config import BASE_URL_COURSES, BASE_URL_LAB, BASE_URL_PATHS, DATA_FOLDER_NAME, OUTPUT_FOLDER_NAME
 from pathlib import Path as PathlibPath
 from skills_scraper.utils.utils import util_replace_quote_marks, util_replace_special_chars, util_strip_html_tags
 from skills_scraper.model.serialize import Serialize

@@ -1,6 +1,6 @@
 from skills_scraper.model.course import Course
 from skills_scraper.model.collection import Collection
-from skills_scraper.config.settings import BASE_URL
+from skills_scraper.config import BASE_URL
 
 
 class Topics(Collection):

@@ -2,7 +2,7 @@ import json
 from bs4 import BeautifulSoup
 import requests
 from skills_scraper.utils.utils import util_replace_special_chars
-from skills_scraper.config.settings import *
+from skills_scraper.config import *
 from skills_scraper.model.base_entity import BaseEntity
 
 # Constants for the extraction of the course data

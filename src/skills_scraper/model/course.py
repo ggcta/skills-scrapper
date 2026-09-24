@@ -9,7 +9,7 @@ import json
 import html
 import requests
 from bs4 import BeautifulSoup
-from skills_scraper.config.settings import BASE_URL, QL_IFRAME
+from skills_scraper.config import BASE_URL, QL_IFRAME
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC

@@ -1,5 +1,5 @@
 import sys
-from skills_scraper.config.settings import BASE_URL_PARTNERS, OUTPUT_FOLDER_NAME, DATA_FOLDER_NAME, WEBDRIVER_PROFILE_FOLDER_NAME
+from skills_scraper.config import BASE_URL_PARTNERS, OUTPUT_FOLDER_NAME, DATA_FOLDER_NAME, WEBDRIVER_PROFILE_FOLDER_NAME
 from skills_scraper.model.path import Path
 from skills_scraper.model.paths import Paths
 from skills_scraper.model.labs import Labs

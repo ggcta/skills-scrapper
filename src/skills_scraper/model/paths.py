@@ -1,5 +1,5 @@
 from skills_scraper.model.collection import Collection
-from skills_scraper.config.settings import BASE_URL_PATHS, API_URL_PATHS
+from skills_scraper.config import BASE_URL_PATHS, API_URL_PATHS
 import requests
 import json
 
