@@ -1,0 +1,26 @@
+[project]
+name = "skills-scraper"
+version = "2.0.1"
+description = "Scrape Google Skills paths, courses and labs into JSON and an Obsidian-ready Markdown vault."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "selenium>=4.40",
+    "beautifulsoup4>=4.12",
+    "requests>=2.32",
+    "tinydb>=4.8",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff",
+]
+
+# Not a package yet: app/ is a flat folder of modules run as scripts.
+# The src/ layout and the console scripts come in the next commit.
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100

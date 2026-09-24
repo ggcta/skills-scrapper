@@ -10,3 +10,4 @@ csbmdvault/.obsidian/workspace.json
 csbmdvault/.obsidian/graph.json
 !csbmdvault/.obsidian
 .build
+__pycache__/
