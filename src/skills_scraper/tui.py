@@ -311,7 +311,7 @@ class CloudSkillsBoost:
                     print(f"•{'SELECTED: ':>15}\033[45m"
                           f"{course_id}: {course_title}"
                           f"\033[0m\n")
-                    
+
                     course = Course(id=course_id, name=course_title)
                     course.generate_prompt()
                     print("Generating prompt completed. Going back...\n")
@@ -374,7 +374,7 @@ def main():
     # Create the OUTPUT FOLDERS if they do not exist
     if not OUTPUT_FOLDER_NAME.exists():
         OUTPUT_FOLDER_NAME.mkdir(parents=True, exist_ok=True)
-    
+
     # Create the DATA FOLDERS if they do not exist
     if not DATA_FOLDER_NAME.exists():
         DATA_FOLDER_NAME.mkdir(parents=True, exist_ok=True)
