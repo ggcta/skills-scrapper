@@ -1,14 +1,37 @@
+# MacOS things
 .DS_Store
+
+# the web profile folder
 /.webdriver_profiles
+
+# compiled python files
 *.pyc
+__pycache__/
+
+# the data folder
 /data/
+
+# .env file
 .env
+
+# venv folder
 /.venv
+
+# node modules
 /node_modules
+
+# MD vault
 csbmdvault/
 csbmdvault/.obsidian/workspace.json
 csbmdvault/.obsidian/graph.json
+
 !csbmdvault/.obsidian
+
+# build
 .build
-__pycache__/
+
+# local config
 /config.yaml
+
+# vim swap
+*.swp
