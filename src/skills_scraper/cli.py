@@ -14,7 +14,7 @@ from skills_scraper.services.store import Index
 
 def cmd_list(args):
     """Handle list command"""
-    
+
     # Determine type
     if args.courses:
         target_class = Courses
@@ -32,12 +32,12 @@ def cmd_list(args):
         print(f"Reloading {label} list from remote...")
         collection = target_class(driver=launch_browser(headless=args.headless))
         collection.load_json()
-        
+
         # Ensure URL is up to date (specifically for Paths)
         if label == "paths":
             from skills_scraper.config import BASE_URL_PATHS
             collection.url = BASE_URL_PATHS
-            
+
         # Fetch list (Supports Path and Courses as they have fetch implemented)
         # Labs fetch might need implementation check, but we assume pattern holds or fails gracefully.
         try:
@@ -59,11 +59,11 @@ def cmd_list(args):
             collection.driver.quit()
 
     print(f"Listing all {label}...")
-    
+
     # Instantiate and load (reload might have updated DB)
     collection = target_class()
     collection.load_json()
-    
+
     # Check if empty (only for Paths/Courses mostly)
     if not collection.collection:
         print(f"No {label} found locally.")
@@ -76,7 +76,7 @@ def cmd_list(args):
 
     # Determine sort
     sort_by = 'id' if args.id else 'name'
-    
+
     collection.print_list(sort_by=sort_by)
 
 def cmd_fetch(args):
@@ -89,7 +89,7 @@ def cmd_fetch(args):
     fetch_paths_ids = args.paths
     fetch_courses_ids = args.courses
     fetch_labs_ids = args.labs
-    
+
     # Validation
     if not (fetch_paths_ids or fetch_courses_ids or fetch_labs_ids):
         print("Please specify items to fetch using -p <id>, -c <id>, or -l <id>.")
@@ -180,16 +180,16 @@ def cmd_search(args):
         search_type = 'path'
     elif args.lab:
         search_type = 'lab'
-        
+
     field = args.field
-    
+
     index = Index()
 
     # Determine tables to search
     tables = []
-    
+
     # Shortcuts for field search if query looks like specific type? No, stick to flags.
-    
+
     if search_type:
         if search_type == 'course':
             tables.append('courses')
@@ -200,12 +200,12 @@ def cmd_search(args):
     else:
         # Search all
         tables = ['paths', 'courses', 'labs']
-    
+
     if not field:
         print(f"Searching for '{query}' in {tables}...")
     else:
         print(f"Searching for '{query}' in {tables} (field: {field})...")
-    
+
     total_results = 0
     for table in tables:
         results = index.search(table, query, field)
@@ -217,23 +217,23 @@ def cmd_search(args):
                 res_name = res.get('name', 'N/A')
                 print(f"+|-• \033[35m[{res_id:>6} - {res_name:<72}]\033[0m")
             total_results += len(results)
-            
+
     if total_results == 0:
         print("No results found.")
 
 def cmd_browser(args):
     """Handle browser command"""
     print("\n\033[35mDEBUG: LAUNCHING THE BROWSER...\033[0m\n")
-    
+
     profile = args.profile_folder if args.profile_folder else WEBDRIVER_PROFILE_FOLDER_NAME
-    
+
     driver = launch_browser(profile_folder=profile, headless=False)
-    
+
     # Open the URL in the default web browser (PARTNERS page usually redirects to login if not logged in)
     driver.get(BASE_URL_PARTNERS)
     print("\n\033[35mDEBUG: BROWSER LAUNCHED.\033[0m")
     print("You can now log in. The script will keep running. Press Ctrl+C to exit and close browser.")
-    
+
     try:
         # Keep the script running so the browser stays open
         # We can also just input() to wait
@@ -248,7 +248,7 @@ def cmd_md(args):
     """Handle md command"""
     toc_only = args.toc
     no_transcript = args.no_transcript
-    
+
     # Check if at least one type is provided
     if not (args.course or args.path or args.lab):
         print("Please specify at least one item type: --course, --path, or --lab.")
@@ -306,13 +306,13 @@ def main():
 
     # List command
     parser_l = subparsers.add_parser('list', aliases=['l'], help='List all paths, courses, or labs')
-    
+
     # Mutually exclusive group for type
     group_type = parser_l.add_mutually_exclusive_group()
     group_type.add_argument('--paths', '-p', action='store_true', help='List all paths (default)')
     group_type.add_argument('--courses', '-c', action='store_true', help='List all courses')
     group_type.add_argument('--labs', '-l', action='store_true', help='List all labs')
-    
+
     # Reload flag
     parser_l.add_argument('--reload', '-r', action='store_true', help='Reload list from remote before listing')
     parser_l.add_argument('--headless', action='store_true', help='Run the browser without a window (profile must be signed in)')
@@ -321,7 +321,7 @@ def main():
     group_sort = parser_l.add_mutually_exclusive_group()
     group_sort.add_argument('--name', '-n', action='store_true', help='Sort by name (default)')
     group_sort.add_argument('--id', '-i', action='store_true', help='Sort by ID')
-    
+
     parser_l.set_defaults(func=cmd_list)
 
     # Fetch command (Scrape)
@@ -329,7 +329,7 @@ def main():
     parser_f.add_argument('--paths', '-p', nargs='+', metavar='ID', help='Fetch specific path IDs')
     parser_f.add_argument('--courses', '-c', nargs='+', metavar='ID', help='Fetch specific course IDs')
     parser_f.add_argument('--labs', '-l', nargs='+', metavar='ID', help='Fetch specific lab IDs')
-    
+
     # Flags from old course/path commands
     parser_f.add_argument('--force', '-f', action='store_true', help='Force re-extraction even if data exists')
     parser_f.add_argument('--no-md', action='store_true', help='Do not generate markdown file')
@@ -337,7 +337,7 @@ def main():
     parser_f.add_argument('--no-transcript', action='store_true', help='Skip video transcripts (courses only)')
     parser_f.add_argument('--cascade', action='store_true', help='After a path, fetch every course in it')
     parser_f.add_argument('--headless', action='store_true', help='Run the browser without a window (profile must be signed in)')
-    
+
     parser_f.set_defaults(func=cmd_fetch)
 
     # Browser command
