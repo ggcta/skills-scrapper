@@ -215,7 +215,7 @@ def cmd_search(args):
                 # Highlight ID and Name
                 res_id = res.get('id', 'N/A')
                 res_name = res.get('name', 'N/A')
-                print(f"+|-• \033[35m[{res_id:>5} - {res_name:<72}]\033[0m")
+                print(f"+|-• \033[35m[{res_id:>6} - {res_name:<72}]\033[0m")
             total_results += len(results)
             
     if total_results == 0:
